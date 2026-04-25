@@ -1,6 +1,7 @@
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { motion } from 'framer-motion';
 import type { Transaction } from '../types';
+import { formatCurrency } from '../utils';
 
 interface CalendarProps {
   calendarDays: Date[];
@@ -71,6 +72,7 @@ export function Calendar({
                     `}
                   >
                     {transaction.type === 'income' ? '+' : '-'}
+                    {formatCurrency(transaction.amount)}
                   </div>
                 ))}
                 {transactions.length > 3 && (
