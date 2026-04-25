@@ -1,1 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Crimson Pro", serif;
+  
+  --color-natural-bg: #F2F0EB;
+  --color-natural-text: #4A4A3F;
+  --color-natural-heading: #5A5A40;
+  --color-natural-accent: #8A9A5B;
+  --color-natural-warning: #C96D56;
+  --color-natural-border: #E5E2D9;
+  --color-natural-surface: #FAF9F6;
+  --color-natural-border-light: #F0EEE6;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
