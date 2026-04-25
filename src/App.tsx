@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 
 import { Calendar } from './components/Calendar'
 import { Header } from './components/Header'
+import { FloatingButton } from './components/FloatingButton'
+
 import { 
   startOfMonth, 
   endOfMonth, 
@@ -19,6 +21,7 @@ function App() {
 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [isDayListOpen, setIsDayListOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
 
 
@@ -48,6 +51,11 @@ function App() {
             setIsDayListOpen(true);
           }} />
       </main>  
+
+      <FloatingButton
+        setSelectedDay={setSelectedDay}
+        setIsModalOpen={setIsModalOpen}
+      />
     </div>
   )
 }
