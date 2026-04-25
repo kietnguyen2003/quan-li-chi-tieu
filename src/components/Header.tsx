@@ -17,7 +17,7 @@ export function Header({ currentDate, onPrevMonth, onNextMonth }: HeaderProps) {
             KitDev
           </h1>
           <p className="text-natural-text/40 text-[9px] font-bold uppercase tracking-widest">
-            Cân bằng cuộc sống
+            Anh đẹp trai của em bé nè
           </p>
         </div>
 
