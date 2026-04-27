@@ -32,3 +32,16 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: '5', name: 'Lương', icon: 'Wallet', color: '#10b981' },
   { id: '6', name: 'Khác', icon: 'MoreHorizontal', color: '#6b7280' },
 ];
+
+export interface User{
+  id: string;
+  email: string;
+  fullName: string;
+  password?: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+}

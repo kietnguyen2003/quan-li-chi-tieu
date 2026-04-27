@@ -1,7 +1,7 @@
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { motion } from 'framer-motion';
-import type { Transaction } from '../types';
-import { formatCurrency } from '../utils';
+import type { Transaction } from '../lib/types';
+import { formatCurrency } from '../lib/utils';
 
 interface CalendarProps {
   calendarDays: Date[];

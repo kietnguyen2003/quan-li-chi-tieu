@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { X, Plus } from 'lucide-react';
-import type { Transaction, Category } from '../types';
+import type { Transaction, Category } from '../lib/types';
 
-import { getIconByName } from '../icons';
-import { formatCurrency } from '../utils.ts';
+import { getIconByName } from '../lib/icons';
+import { formatCurrency } from '../lib/utils.ts';
 import { vi } from 'date-fns/locale';
 
 interface TransactionListProps{
