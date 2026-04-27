@@ -7,19 +7,43 @@ interface CalendarProps {
   calendarDays: Date[];
   dayTransactions: Record<string, Transaction[]>;
   monthStart: Date;
+  monthIncome: string;
+  monthExpense: string;
   onSelectDay: (day: Date) => void;
 }
 
 const weekDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
 export function Calendar({
   calendarDays,
   dayTransactions,
   monthStart,
+  monthIncome,
+  monthExpense,
   onSelectDay,
 }: CalendarProps) {
   return (
-    <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-natural-heading/5 border border-natural-border overflow-hidden">
+    <>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-2xl border border-natural-border bg-white p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
+            Thu nhập tháng này
+          </p>
+          <p className="mt-2 text-lg font-serif italic text-natural-accent md:text-2xl">
+            {monthIncome}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-natural-border bg-white p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
+            Chi tiêu tháng này
+          </p>
+          <p className="mt-2 text-lg font-serif italic text-natural-warning md:text-2xl">
+            {monthExpense}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-natural-heading/5 border border-natural-border overflow-hidden">
       <div className="grid grid-cols-7 border-b border-natural-border-light bg-natural-surface/50">
         {weekDays.map((day) => (
           <div
@@ -86,5 +110,7 @@ export function Calendar({
         })}
       </div>
     </div>
+        </>
+
   );
 }

@@ -5,7 +5,7 @@ import { Header } from '../components/Header'
 import { FloatingButton } from '../components/FloatingButton'
 import { TransactionList } from '../components/TransactionList'
 
-import { loadStoredValue } from '../lib/utils.ts';
+import { formatCurrency, loadStoredValue } from '../lib/utils.ts';
 
 import { 
   addMonths, 
@@ -15,6 +15,8 @@ import {
   startOfWeek, 
   endOfWeek, 
   eachDayOfInterval, 
+  isWithinInterval,
+  parseISO,
 } from 'date-fns';
 
 import { groupTransactionsByDate } from '../lib/helper.ts';
@@ -72,6 +74,26 @@ function MoneyManage() {
 
 
   const dayTransactions = useMemo(() => groupTransactionsByDate(transactions), [transactions]);
+  const monthSummary = useMemo(() => {
+    return transactions.reduce(
+      (summary, transaction) => {
+        const transactionDate = parseISO(transaction.date);
+
+        if (!isWithinInterval(transactionDate, { start: monthStart, end: monthEnd })) {
+          return summary;
+        }
+
+        if (transaction.type === 'income') {
+          summary.income += transaction.amount;
+        } else {
+          summary.expense += transaction.amount;
+        }
+
+        return summary;
+      },
+      { income: 0, expense: 0 },
+    );
+  }, [transactions, currentDate]);
 
 
   return (
@@ -93,6 +115,8 @@ function MoneyManage() {
           calendarDays={calendarDays}
           dayTransactions={dayTransactions}
           monthStart={monthStart}
+          monthIncome={formatCurrency(monthSummary.income)}
+          monthExpense={formatCurrency(monthSummary.expense)}
           onSelectDay={(day) => {
             setSelectedDay(day);
             setIsDayListOpen(true);
@@ -122,7 +146,11 @@ function MoneyManage() {
             categories={categories}
             setIsModalOpen={setIsModalOpen}
             setCategories={setCategories}
-            onAddTransaction={(transaction) => setTransactions([...transactions, transaction])}
+            onAddTransaction={(transaction) => {
+                console.log('New Transaction:', transaction);
+                setTransactions([...transactions, transaction]);
+              }
+            }
           />
       </AnimatePresence>
     </div>

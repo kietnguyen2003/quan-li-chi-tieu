@@ -45,16 +45,16 @@ function Login() {
         } 
 
         } else {
-        const user = savedUsers.find(u => u.email === email && u.password === password);
-        if (!user) {
-            setAuthError('Email hoặc mật khẩu không đúng');
-            return;
-        }
-        // Simulate server login and token generation via context
-        const isLoginSuccess = login(user.email, user.fullName, user.id);
-        if (isLoginSuccess) {
-            navigate('/app');
-        }
+            const user = savedUsers.find(u => u.email === email && u.password === password);
+            if (!user) {
+                setAuthError('Email hoặc mật khẩu không đúng');
+                return;
+            }
+            // Simulate server login and token generation via context
+            const isLoginSuccess = login(user.email, user.fullName, user.id);
+            if (isLoginSuccess) {
+                navigate('/app');
+            }
         }
     };
     return (

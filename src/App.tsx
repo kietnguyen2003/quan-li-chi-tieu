@@ -6,7 +6,7 @@ import {PrivateRoute} from './routes/PrivateRoute'
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to="/app" replace />} />
 
       <Route path="/login" element={<Login />} />
 
