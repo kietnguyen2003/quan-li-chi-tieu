@@ -31,8 +31,8 @@ import { useAuth } from '../context/AuthContext.tsx'
 function MoneyManage() {
     const { user } = useAuth();
 
-  const STORAGE_KEY_TRANSACTIONS = `kitdev_${user?.id}_transactions`;
-  const STORAGE_KEY_CATEGORIES = `kitdev_${user?.id}_categories`;
+  const STORAGE_KEY_TRANSACTIONS = `pocketkit_${user?.id}_transactions`;
+  const STORAGE_KEY_CATEGORIES = `pocketkit_${user?.id}_categories`;
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [transactions, setTransactions] = useState<Transaction[]>(() =>

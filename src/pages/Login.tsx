@@ -13,7 +13,7 @@ function Login() {
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
 
-    const STORAGE_KEY_USERS = 'kitdev_users';
+    const STORAGE_KEY_USERS = 'pocketkit_users';
 
     const navigate = useNavigate();
 
@@ -65,7 +65,7 @@ function Login() {
           className="bg-white w-full max-w-md p-10 rounded-[3rem] shadow-2xl border border-natural-border"
         >
           <div className="text-center mb-10">
-            <h1 className="text-4xl font-serif italic text-natural-heading mb-2">KitDev</h1>
+            <h1 className="text-4xl font-serif italic text-natural-heading mb-2">PocketKit</h1>
             <p className="text-natural-text/40 text-xs font-bold uppercase tracking-widest">
               {authMode === 'login' ? 'Đăng nhập vào tài khoản' : 'Tạo tài khoản mới'}
             </p>

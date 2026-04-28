@@ -17,7 +17,7 @@ export function Header({ currentDate, onPrevMonth, onNextMonth }: HeaderProps) {
       <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl md:text-2xl font-serif italic text-natural-heading">
-            KitDev
+            PocketKit
           </h1>
           <p className="text-natural-text/40 text-[9px] font-bold uppercase tracking-widest">
             Xin chào{' '}
