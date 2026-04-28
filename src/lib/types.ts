@@ -6,7 +6,8 @@ export type IconName =
   | 'ShoppingBag'
   | 'Gamepad2'
   | 'Wallet'
-  | 'MoreHorizontal';
+  | 'MoreHorizontal'
+  | 'Dumbbell';
 
 export interface Transaction {
   id: string;
@@ -30,7 +31,8 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: '3', name: 'Mua sắm', icon: 'ShoppingBag', color: '#f59e0b' },
   { id: '4', name: 'Giải trí', icon: 'Gamepad2', color: '#8b5cf6' },
   { id: '5', name: 'Lương', icon: 'Wallet', color: '#10b981' },
-  { id: '6', name: 'Khác', icon: 'MoreHorizontal', color: '#6b7280' },
+  { id: '6', name: 'Thể thao', icon: 'Dumbbell', color: '#f97316' },
+  { id: '7', name: 'Khác', icon: 'MoreHorizontal', color: '#6b7280' },
 ];
 
 export interface User{

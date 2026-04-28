@@ -1,5 +1,6 @@
 import {
   Car,
+  Dumbbell,
   Gamepad2,
   MoreHorizontal,
   ShoppingBag,
@@ -16,6 +17,7 @@ export const IconMap: Record<IconName, LucideIcon> = {
   Gamepad2,
   Wallet,
   MoreHorizontal,
+  Dumbbell,
 };
 
 export const getIconByName = (iconName?: IconName): LucideIcon => {

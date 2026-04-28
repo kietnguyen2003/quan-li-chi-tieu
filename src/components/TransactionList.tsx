@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { X, Plus } from 'lucide-react';
+import { Pencil, Plus, X } from 'lucide-react';
 import type { Transaction, Category } from '../lib/types';
 
 import { getIconByName } from '../lib/icons';
@@ -14,9 +14,10 @@ interface TransactionListProps{
     categories: Category[];
     setIsDayListOpen: (open: boolean) => void;
     setIsModalOpen: (open: boolean) => void;
+    onEditTransaction: (transaction: Transaction) => void;
 }
 
-export function TransactionList({ isDayListOpen, selectedDay, dayTransactions, categories, setIsDayListOpen, setIsModalOpen }: TransactionListProps) {
+export function TransactionList({ isDayListOpen, selectedDay, dayTransactions, categories, setIsDayListOpen, setIsModalOpen, onEditTransaction }: TransactionListProps) {
     return (
         <>
             {isDayListOpen && selectedDay && (
@@ -54,7 +55,7 @@ export function TransactionList({ isDayListOpen, selectedDay, dayTransactions, c
                         const category = categories.find(c => c.id === t.categoryId);
                         const Icon = getIconByName(category?.icon);
                         return (
-                        <div key={t.id} className="flex items-center justify-between p-4 bg-natural-surface rounded-2xl border border-natural-border-light">
+                        <div key={t.id} className="flex items-center justify-between gap-3 p-4 bg-natural-surface rounded-2xl border border-natural-border-light">
                             <div className="flex items-center gap-4">
                             <div 
                                 className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
@@ -67,9 +68,19 @@ export function TransactionList({ isDayListOpen, selectedDay, dayTransactions, c
                                 <p className="text-[10px] text-natural-text/40 uppercase tracking-widest font-bold">{t.type === 'income' ? 'Thu nhập' : 'Chi tiêu'}</p>
                             </div>
                             </div>
-                            <p className={`font-bold ${t.type === 'income' ? 'text-natural-accent' : 'text-natural-warning'}`}>
-                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <p className={`font-bold whitespace-nowrap ${t.type === 'income' ? 'text-natural-accent' : 'text-natural-warning'}`}>
+                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                </p>
+                                <button
+                                    onClick={() => onEditTransaction(t)}
+                                    className="w-9 h-9 rounded-xl bg-white border border-natural-border-light text-natural-text/40 hover:text-natural-heading active:scale-95 transition-all flex items-center justify-center"
+                                    aria-label="Sửa giao dịch"
+                                    title="Sửa giao dịch"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                         );
                     })

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -13,9 +13,11 @@ interface AddTransactionProps {
     setIsModalOpen: (open: boolean) => void;
     setCategories: (categories: Category[]) => void;
     onAddTransaction: (transaction: Transaction) => void;
+    editingTransaction?: Transaction | null;
+    onUpdateTransaction?: (transaction: Transaction) => void;
 }
 
-export function AddTransaction({ isModalOpen, selectedDay, categories , setIsModalOpen, setCategories, onAddTransaction }: AddTransactionProps) {
+export function AddTransaction({ isModalOpen, selectedDay, categories , setIsModalOpen, setCategories, onAddTransaction, editingTransaction, onUpdateTransaction }: AddTransactionProps) {
     const [amount, setAmount] = useState('');
     const [type, setType] = useState<TransactionType>('expense');
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -36,18 +38,42 @@ export function AddTransaction({ isModalOpen, selectedDay, categories , setIsMod
     setNewCategoryName('');
   };
 
-  const handleAddTransaction = () => {
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    if (editingTransaction) {
+      setAmount(String(editingTransaction.amount));
+      setType(editingTransaction.type);
+      setSelectedCategoryId(editingTransaction.categoryId);
+      setIsAddingCategory(false);
+      setNewCategoryName('');
+      return;
+    }
+
+    setAmount('');
+    setType('expense');
+    setSelectedCategoryId('');
+    setIsAddingCategory(false);
+    setNewCategoryName('');
+  }, [editingTransaction, isModalOpen]);
+
+  const handleSaveTransaction = () => {
     if (!amount || !selectedCategoryId || !selectedDay) return;
 
-    const newTransaction: Transaction = {
-      id: crypto.randomUUID(),
+    const transaction: Transaction = {
+      id: editingTransaction?.id ?? crypto.randomUUID(),
       amount: parseFloat(amount),
       type,
       categoryId: selectedCategoryId,
-      date: selectedDay.toISOString(),
+      date: editingTransaction?.date ?? selectedDay.toISOString(),
     };
 
-    onAddTransaction(newTransaction);
+    if (editingTransaction && onUpdateTransaction) {
+      onUpdateTransaction(transaction);
+    } else {
+      onAddTransaction(transaction);
+    }
+
     setIsModalOpen(false);
   };
 
@@ -75,7 +101,7 @@ export function AddTransaction({ isModalOpen, selectedDay, categories , setIsMod
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-xl md:text-2xl font-serif italic text-natural-heading">
-                    Thêm giao dịch
+                    {editingTransaction ? 'Sửa giao dịch' : 'Thêm giao dịch'}
                   </h2>
                   <p className="text-natural-text/40 font-bold text-[9px] uppercase tracking-widest mt-1">
                     {selectedDay ? format(selectedDay, 'eeee, dd MMMM', { locale: vi }) : ''}
@@ -210,7 +236,7 @@ export function AddTransaction({ isModalOpen, selectedDay, categories , setIsMod
 
               {/* Submit Action */}
               <button
-                onClick={handleAddTransaction}
+                onClick={handleSaveTransaction}
                 disabled={!amount || !selectedCategoryId}
                 className={`
                   w-full py-4 rounded-2xl font-bold text-base tracking-tight transition-all duration-300
