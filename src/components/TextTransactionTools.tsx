@@ -199,6 +199,9 @@ export function TextTransactionTools({
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-natural-text/40 mt-1">
                   25/4/2026: -20000 ăn uống, +100000 lương
                 </p>
+                <p className="text-xs font-semibold text-natural-warning mt-2">
+                  Lưu ý: tên hạng mục trong text phải chọn theo danh sách category bên dưới.
+                </p>
               </div>
               <button
                 type="button"
@@ -218,6 +221,26 @@ export function TextTransactionTools({
               <Download className="w-4 h-4" />
               Xuất file text
             </button>
+
+            <div className="mb-4 rounded-2xl border border-natural-border bg-natural-surface/50 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-natural-text/40 mb-3">
+                Category có thể dùng
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <span
+                    key={category.id}
+                    className="inline-flex items-center gap-2 rounded-full border border-natural-border bg-white px-3 py-1.5 text-xs font-bold text-natural-heading"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {category.name.toLocaleLowerCase('vi-VN')}
+                  </span>
+                ))}
+              </div>
+            </div>
 
             <textarea
               value={textTransactions}
