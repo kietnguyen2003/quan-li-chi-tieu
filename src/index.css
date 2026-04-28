@@ -15,6 +15,16 @@
   --color-natural-border-light: #F0EEE6;
 }
 
+@layer base {
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
