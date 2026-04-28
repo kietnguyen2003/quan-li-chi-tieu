@@ -6,6 +6,16 @@ import { Plus, Check, X } from 'lucide-react';
 import type { Category, Transaction, TransactionType } from '../lib/types';
 import { getIconByName } from '../lib/icons';
 
+const formatAmountInput = (value: string | number) => {
+  const digits = String(value).replace(/\D/g, '');
+
+  if (!digits) return '';
+
+  return new Intl.NumberFormat('vi-VN').format(Number(digits));
+};
+
+const parseAmountInput = (value: string) => Number(value.replace(/\D/g, ''));
+
 interface AddTransactionProps {
     isModalOpen: boolean;
     selectedDay: Date | null;
@@ -42,7 +52,7 @@ export function AddTransaction({ isModalOpen, selectedDay, categories , setIsMod
     if (!isModalOpen) return;
 
     if (editingTransaction) {
-      setAmount(String(editingTransaction.amount));
+      setAmount(formatAmountInput(editingTransaction.amount));
       setType(editingTransaction.type);
       setSelectedCategoryId(editingTransaction.categoryId);
       setIsAddingCategory(false);
@@ -58,11 +68,13 @@ export function AddTransaction({ isModalOpen, selectedDay, categories , setIsMod
   }, [editingTransaction, isModalOpen]);
 
   const handleSaveTransaction = () => {
-    if (!amount || !selectedCategoryId || !selectedDay) return;
+    const parsedAmount = parseAmountInput(amount);
+
+    if (!parsedAmount || !selectedCategoryId || !selectedDay) return;
 
     const transaction: Transaction = {
       id: editingTransaction?.id ?? crypto.randomUUID(),
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       type,
       categoryId: selectedCategoryId,
       date: editingTransaction?.date ?? selectedDay.toISOString(),
@@ -143,9 +155,10 @@ export function AddTransaction({ isModalOpen, selectedDay, categories , setIsMod
                   </span>
                   <input
                     autoFocus
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                     placeholder="0"
                     className="w-full text-3xl font-bold bg-transparent border-none outline-none text-natural-heading placeholder:text-natural-text/10"
                   />
