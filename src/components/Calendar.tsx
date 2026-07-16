@@ -1,51 +1,32 @@
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { motion } from 'framer-motion';
-import type { Transaction } from '../lib/types';
-import { formatCurrency } from '../lib/utils';
+import type { ClassCheckIn, FixedClassSchedule, TeachingClass } from '../types.ts';
+import { formatCurrency } from '../utils.ts';
+import { resolveSessionAmount } from '../transaction-helpers.ts';
 
 interface CalendarProps {
   calendarDays: Date[];
-  dayTransactions: Record<string, Transaction[]>;
+  dayCheckIns: Record<string, ClassCheckIn[]>;
   monthStart: Date;
-  monthIncome: string;
-  monthExpense: string;
+  classes: TeachingClass[];
+  fixedClasses: FixedClassSchedule[];
   onSelectDay: (day: Date) => void;
 }
 
-const weekDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 export function Calendar({
   calendarDays,
-  dayTransactions,
+  dayCheckIns,
   monthStart,
-  monthIncome,
-  monthExpense,
+  classes,
+  fixedClasses,
   onSelectDay,
 }: CalendarProps) {
+  const classMap = new Map(classes.map((classItem) => [classItem.id, classItem]));
+
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="rounded-2xl border border-natural-border bg-white p-4 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
-            Thu nhập tháng này
-          </p>
-          <p className="mt-2 text-lg font-serif italic text-natural-accent md:text-2xl">
-            {monthIncome}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-natural-border bg-white p-4 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
-            Chi tiêu tháng này
-          </p>
-          <p className="mt-2 text-lg font-serif italic text-natural-warning md:text-2xl">
-            {monthExpense}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-natural-heading/5 border border-natural-border overflow-hidden">
+    <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-natural-heading/5 border border-natural-border overflow-hidden">
       <div className="grid grid-cols-7 border-b border-natural-border-light bg-natural-surface/50">
-        {weekDays.map((day) => (
+        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day) => (
           <div
             key={day}
             className="py-3 text-center text-[9px] font-bold text-natural-text/40 uppercase tracking-[0.2em]"
@@ -57,10 +38,12 @@ export function Calendar({
       <div className="grid grid-cols-7">
         {calendarDays.map((day) => {
           const dateKey = format(day, 'yyyy-MM-dd');
-          const transactions = dayTransactions[dateKey] ?? [];
-          const hasTransactions = transactions.length > 0;
+          const checkIns = dayCheckIns[dateKey] ?? [];
           const isCurrentMonth = isSameMonth(day, monthStart);
           const isToday = isSameDay(day, new Date());
+          const hasFixedClass = fixedClasses.some((fixedClass) => {
+            return fixedClass.weekdays.includes(day.getDay());
+          });
 
           return (
             <motion.button
@@ -71,8 +54,9 @@ export function Calendar({
                 min-h-[70px] md:min-h-[95px] p-1 md:p-2 border-r border-b border-natural-border-light flex flex-col items-center justify-start
                 relative transition-all hover:bg-natural-surface/80 group
                 ${!isCurrentMonth ? 'bg-natural-bg/30 opacity-30 select-none pointer-events-none' : 'bg-transparent'}
+                ${isCurrentMonth && hasFixedClass ? 'bg-[#f5e9b8]/45' : ''}
                 ${isToday ? 'after:content-[""] after:absolute after:top-1.5 after:right-1.5 after:w-1.5 after:h-1.5 after:bg-natural-accent after:rounded-full' : ''}
-                ${hasTransactions ? 'bg-natural-surface/30 shadow-inner' : ''}
+                ${checkIns.length > 0 ? 'bg-natural-surface/30 shadow-inner' : ''}
               `}
             >
               <span
@@ -87,21 +71,32 @@ export function Calendar({
               </span>
 
               <div className="w-full flex flex-col gap-0.5 overflow-hidden no-scrollbar">
-                {transactions.slice(0, 3).map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className={`
-                      text-[7px] md:text-[9px] font-bold truncate px-1 rounded-sm border
-                      ${transaction.type === 'income' ? 'text-natural-accent bg-natural-accent/5 border-natural-accent/10' : 'text-natural-warning bg-natural-warning/5 border-natural-warning/10'}
-                    `}
-                  >
-                    {transaction.type === 'income' ? '+' : '-'}
-                    {formatCurrency(transaction.amount)}
-                  </div>
-                ))}
-                {transactions.length > 3 && (
+                {checkIns.slice(0, 3).map((checkIn) => {
+                  const classItem = classMap.get(checkIn.classId);
+                  const lineLabel = checkIn.timeRange
+                    ? `${classItem?.name ?? 'Lop da xoa'} • ${checkIn.timeRange}`
+                    : classItem?.name ?? 'Lop da xoa';
+
+                  return (
+                    <div
+                      key={checkIn.id}
+                      className="text-[7px] md:text-[9px] font-bold truncate px-1 rounded-sm border text-natural-heading bg-natural-accent/5 border-natural-accent/10"
+                      title={lineLabel}
+                    >
+                      {lineLabel}
+                    </div>
+                  );
+                })}
+                {checkIns.length > 0 && (
                   <div className="text-[6px] md:text-[8px] text-natural-text/30 text-center font-bold">
-                    +{transactions.length - 3}
+                    {formatCurrency(
+                      checkIns.reduce((total, checkIn) => {
+                        const classItem = classMap.get(checkIn.classId);
+                        const sessionAmount = resolveSessionAmount(checkIn, classItem);
+
+                        return total + sessionAmount;
+                      }, 0),
+                    ).replace(' ₫', '').replace(' ₫', '')}
                   </div>
                 )}
               </div>
@@ -110,7 +105,5 @@ export function Calendar({
         })}
       </div>
     </div>
-        </>
-
   );
 }
