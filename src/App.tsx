@@ -764,7 +764,7 @@ export default function App() {
     fixedClassWeekdays.length > 0;
 
   return (
-    <div className="min-h-screen bg-natural-bg text-natural-text font-sans selection:bg-natural-accent/20 pb-20">
+    <div className="min-h-screen bg-natural-bg pb-20 font-sans text-natural-text selection:bg-natural-accent/20">
       <Header
         currentDate={currentDate}
         onPrevMonth={prevMonth}
@@ -772,29 +772,29 @@ export default function App() {
         title="Class Check-in"
         subtitle="Theo doi lich day"
       />
-      <main className="max-w-4xl mx-auto p-3 md:p-6">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:justify-end">
+      <main className="mx-auto max-w-4xl p-2.5 sm:p-3 md:p-6">
+        <div className="mb-3 flex flex-col gap-2.5 md:flex-row md:justify-end">
           <button
             onClick={handleExportData}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-natural-border bg-white px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-natural-heading shadow-sm transition-colors hover:border-natural-accent hover:bg-natural-surface"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-natural-border bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-heading shadow-sm transition-colors hover:border-natural-accent hover:bg-natural-surface sm:px-4 sm:text-[11px] sm:tracking-[0.2em]"
           >
             <Download className="h-4 w-4" /> Xuat du lieu
           </button>
           <button
             onClick={() => setIsManageClassesOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-natural-border bg-white px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-natural-heading shadow-sm transition-colors hover:border-natural-accent hover:bg-natural-surface"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-natural-border bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-heading shadow-sm transition-colors hover:border-natural-accent hover:bg-natural-surface sm:px-4 sm:text-[11px] sm:tracking-[0.2em]"
           >
             <Pencil className="h-4 w-4" /> Danh sach lop
           </button>
           <button
             onClick={() => setIsBulkImportOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full border border-natural-border bg-white px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-natural-heading shadow-sm transition-colors hover:border-natural-accent hover:bg-natural-surface"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-natural-border bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-heading shadow-sm transition-colors hover:border-natural-accent hover:bg-natural-surface sm:px-4 sm:text-[11px] sm:tracking-[0.2em]"
           >
             <Upload className="h-4 w-4" /> Nhap nhanh lich day
           </button>
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-4 text-[9px] font-bold uppercase tracking-[0.15em] text-natural-text/40 justify-center md:justify-start">
+        <div className="mb-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[8px] font-bold uppercase tracking-[0.12em] text-natural-text/40 md:justify-start md:text-[9px] md:tracking-[0.15em]">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-natural-accent"></div> Buoi da check-in
           </div>
@@ -828,10 +828,10 @@ export default function App() {
         whileHover={{ scale: 1.05, rotate: 5 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => openCheckInModal(new Date())}
-        className="fixed bottom-10 right-10 w-16 h-16 bg-natural-heading text-white rounded-full shadow-2xl shadow-natural-heading/30 flex items-center justify-center z-20 group border-4 border-white"
+        className="group fixed bottom-6 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-natural-heading text-white shadow-2xl shadow-natural-heading/30 sm:bottom-10 sm:right-10 sm:h-16 sm:w-16"
         id="add-checkin-fab"
       >
-        <Plus className="w-8 h-8" />
+        <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
       </motion.button>
 
       <AnimatePresence>
@@ -1154,7 +1154,7 @@ export default function App() {
 
       <AnimatePresence>
         {isManageClassesOpen ? (
-          <div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[75] flex items-start justify-center p-2 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1166,14 +1166,14 @@ export default function App() {
               initial={{ scale: 0.94, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.94, opacity: 0 }}
-              className="relative w-full max-w-4xl rounded-[2.5rem] border border-natural-border bg-white p-8 shadow-2xl"
+              className="relative mt-2 h-[calc(100vh-1rem)] w-full max-w-4xl overflow-hidden rounded-[1.75rem] border border-natural-border bg-white p-3 shadow-2xl sm:mt-6 sm:h-auto sm:max-h-[94vh] sm:overflow-y-auto sm:rounded-[2.5rem] sm:p-8"
             >
-              <div className="mb-6 flex items-center justify-between gap-4">
+              <div className="mb-4 flex items-start justify-between gap-3 sm:mb-6 sm:items-center sm:gap-4">
                 <div>
-                  <h3 className="text-xl font-serif italic text-natural-heading">
+                  <h3 className="text-base font-serif italic text-natural-heading sm:text-xl">
                     Danh sach lop day
                   </h3>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
+                  <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em] text-natural-text/40 sm:text-[10px] sm:tracking-widest">
                     Xem va chinh sua thong tin tung lop
                   </p>
                 </div>
@@ -1185,8 +1185,8 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="space-y-3 max-h-[420px] overflow-y-auto no-scrollbar pr-1">
+              <div className="grid h-[calc(100%-3.5rem)] gap-3 overflow-hidden lg:grid-cols-[0.95fr_1.05fr] lg:gap-5">
+                <div className="space-y-2 overflow-y-auto no-scrollbar pr-1">
                   {classes.length ? (
                     classes.map((classItem) => {
                       const isEditing = editingClassId === classItem.id;
@@ -1196,28 +1196,28 @@ export default function App() {
                           key={classItem.id}
                           onClick={() => openEditClassForm(classItem)}
                           className={`
-                            w-full rounded-[2rem] border p-5 text-left transition-all
+                            w-full rounded-[1.5rem] border p-3 text-left transition-all sm:rounded-[2rem] sm:p-5
                             ${isEditing
                               ? 'border-natural-accent bg-natural-accent/8 shadow-lg shadow-natural-accent/10'
                               : 'border-natural-border bg-natural-surface hover:border-natural-heading'
                             }
                           `}
                         >
-                          <div className="flex items-start justify-between gap-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <div>
-                              <p className="text-base font-bold text-natural-heading">
+                              <p className="text-sm font-bold text-natural-heading sm:text-base">
                                 {classItem.name}
                               </p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-natural-text/40">
+                              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-natural-text/40 sm:text-[10px] sm:tracking-[0.2em]">
                                 {classItem.durationHours} gio moi buoi
                               </p>
                               {classItem.note ? (
-                                <p className="mt-3 text-sm text-natural-text/70">
+                                <p className="mt-2 line-clamp-2 text-xs text-natural-text/70 sm:mt-3 sm:text-sm">
                                   {classItem.note}
                                 </p>
                               ) : null}
                             </div>
-                            <p className="text-right font-bold text-natural-accent">
+                            <p className="text-left text-base font-bold text-natural-accent sm:text-right sm:text-base">
                               {formatCurrency(classItem.salary)}/gio
                             </p>
                           </div>
@@ -1231,35 +1231,35 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="rounded-[2rem] border border-natural-border bg-natural-surface p-6">
+                <div className="overflow-y-auto rounded-[1.5rem] border border-natural-border bg-natural-surface p-3 sm:rounded-[2rem] sm:p-6">
                   {editingClassId ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div>
-                        <label className="text-[10px] font-bold text-natural-text/50 uppercase tracking-[0.25em] block mb-3 px-1">
+                        <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
                           Ten lop
                         </label>
                         <input
                           type="text"
                           value={editingClassName}
                           onChange={(event) => setEditingClassName(event.target.value)}
-                          className="w-full rounded-2xl border border-natural-border bg-white px-5 py-4 font-bold text-base outline-none"
+                          className="w-full rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 font-bold text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
                         />
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                          <label className="text-[10px] font-bold text-natural-text/50 uppercase tracking-[0.25em] block mb-3 px-1">
+                          <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
                             Luong moi gio
                           </label>
                           <input
                             type="number"
                             value={editingClassSalary}
                             onChange={(event) => setEditingClassSalary(event.target.value)}
-                            className="w-full rounded-2xl border border-natural-border bg-white px-5 py-4 font-bold text-base outline-none"
+                            className="w-full rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 font-bold text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-natural-text/50 uppercase tracking-[0.25em] block mb-3 px-1">
+                          <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
                             So gio hoc
                           </label>
                           <input
@@ -1268,40 +1268,40 @@ export default function App() {
                             step="0.5"
                             value={editingClassDurationHours}
                             onChange={(event) => setEditingClassDurationHours(event.target.value)}
-                            className="w-full rounded-2xl border border-natural-border bg-white px-5 py-4 font-bold text-base outline-none"
+                            className="w-full rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 font-bold text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-natural-text/50 uppercase tracking-[0.25em] block mb-3 px-1">
+                        <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
                           Ghi chu
                         </label>
                         <textarea
                           value={editingClassNote}
                           onChange={(event) => setEditingClassNote(event.target.value)}
-                          rows={4}
-                          className="w-full resize-none rounded-2xl border border-natural-border bg-white px-5 py-4 text-base outline-none"
+                          rows={3}
+                          className="w-full resize-none rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
                         />
                       </div>
 
-                      <div className="flex gap-3 pt-2">
+                      <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:gap-3 sm:pt-2">
                         <button
                           onClick={handleUpdateClass}
-                          className="flex-1 rounded-2xl bg-natural-heading py-4 font-bold text-white shadow-lg shadow-natural-heading/20 transition-transform active:scale-[0.98]"
+                          className="flex-1 rounded-[1.25rem] bg-natural-heading py-3 text-sm font-bold text-white shadow-lg shadow-natural-heading/20 transition-transform active:scale-[0.98] sm:rounded-2xl sm:py-4 sm:text-base"
                         >
                           Luu thay doi
                         </button>
                         <button
                           onClick={closeManageClassesModal}
-                          className="rounded-2xl border border-natural-border px-5 py-4 font-bold text-natural-text/60 transition-colors hover:bg-white"
+                          className="rounded-[1.25rem] border border-natural-border px-4 py-3 text-sm font-bold text-natural-text/60 transition-colors hover:bg-white sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
                         >
                           Dong
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex h-full min-h-[280px] items-center justify-center text-center text-natural-text/35 font-serif italic">
+                    <div className="flex h-full min-h-[220px] items-center justify-center text-center text-sm text-natural-text/35 font-serif italic sm:min-h-[280px]">
                       Chon mot lop o ben trai de chinh sua.
                     </div>
                   )}
