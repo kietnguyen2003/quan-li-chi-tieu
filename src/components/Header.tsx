@@ -18,43 +18,46 @@ export function Header({
   subtitle = 'Theo doi lich day',
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-10 border-b border-natural-border bg-linear-to-r from-natural-heading via-[#16394d] to-natural-heading px-4 py-2.5 text-white shadow-sm sm:px-6 sm:py-3">
-      <div className="mx-auto flex max-w-4xl flex-col justify-between gap-2 sm:gap-3 md:flex-row md:items-center">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="h-10 w-10 overflow-hidden rounded-[1.15rem] border border-white/15 bg-white/8 p-1 shadow-lg shadow-black/10 backdrop-blur-sm sm:h-12 sm:w-12 sm:rounded-2xl sm:p-1.5">
+    <header className="sticky top-0 z-30 border-b border-natural-border/80 bg-[color:var(--color-natural-overlay)]/95 px-4 py-3 text-white shadow-[0_16px_34px_rgba(15,41,56,0.18)] backdrop-blur-xl sm:px-6 sm:py-4">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="h-11 w-11 overflow-hidden rounded-[1.15rem] border border-white/15 bg-white/8 p-1 shadow-lg shadow-black/10 backdrop-blur-sm sm:h-12 sm:w-12 sm:rounded-[1.35rem] sm:p-1.5">
             <img
               src="/image.png"
               alt="Logo trung tam"
-              className="h-full w-full rounded-xl object-cover"
+              className="h-full w-full rounded-[0.95rem] object-cover"
             />
           </div>
-          <div>
-            <h1 className="text-lg font-serif italic text-white sm:text-xl md:text-2xl">
+          <div className="space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-white/55 sm:text-[10px]">
+              Teaching desk
+            </p>
+            <h1 className="text-lg font-serif text-white sm:text-xl md:text-[1.7rem]">
               {title}
             </h1>
-            <p className="text-[8px] font-bold uppercase tracking-[0.18em] text-white/65 sm:text-[9px] sm:tracking-widest">
+            <p className="max-w-md text-sm text-white/72">
               {subtitle}
             </p>
           </div>
         </div>
 
-        <div className="flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/10 px-1 py-1 backdrop-blur-sm sm:gap-4 sm:p-1">
+        <div className="flex w-full items-center justify-between gap-2 rounded-[1.5rem] border border-white/10 bg-white/8 px-2 py-2 backdrop-blur-sm sm:w-fit sm:justify-start sm:gap-4 sm:rounded-full">
           <button
             onClick={onPrevMonth}
-            className="rounded-full p-1 text-natural-accent transition-all hover:bg-white/10 hover:shadow-sm"
+            className="rounded-full p-2 text-natural-accent hover:bg-white/10 hover:shadow-sm"
             id="prev-month-btn"
           >
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="min-w-[108px] text-center font-serif text-sm italic capitalize text-white sm:min-w-[120px] sm:text-base">
+          <span className="min-w-0 flex-1 text-center font-serif text-sm capitalize text-white sm:min-w-[138px] sm:flex-none sm:text-base">
             {format(currentDate, 'MMMM, yyyy', { locale: vi })}
           </span>
           <button
             onClick={onNextMonth}
-            className="rounded-full p-1 text-natural-accent transition-all hover:bg-white/10 hover:shadow-sm"
+            className="rounded-full p-2 text-natural-accent hover:bg-white/10 hover:shadow-sm"
             id="next-month-btn"
           >
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>

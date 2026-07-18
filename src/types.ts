@@ -11,16 +11,6 @@ export interface TeachingClass {
   durationHours: number;
 }
 
-export interface FixedClassSchedule {
-  id: string;
-  name: string;
-  salary: number;
-  note: string;
-  durationHours: number;
-  startTime: string;
-  weekdays: number[];
-}
-
 export interface ClassCheckIn {
   id: string;
   classId: string;

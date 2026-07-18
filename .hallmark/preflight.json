@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-07-18",
+  "framework": "React + Vite",
+  "motion": "framer-motion",
+  "fontStack": [
+    "Inter",
+    "Crimson Pro"
+  ],
+  "paletteSource": "src/index.css @theme natural tokens",
+  "preserve": [
+    "font stack",
+    "natural palette",
+    "spacing scale"
+  ],
+  "introduce": [
+    "luxury-soft hierarchy",
+    "inline check-in class picking",
+    "hallmark interaction discipline"
+  ]
+}

@@ -1,6 +1,6 @@
-# PocketKit
+# trainingcamp
 
-PocketKit is a small personal expense tracker built with React, TypeScript, Vite, and Tailwind CSS.
+trainingcamp is a small personal expense tracker built with React, TypeScript, Vite, and Tailwind CSS.
 
 ## Scripts
 
