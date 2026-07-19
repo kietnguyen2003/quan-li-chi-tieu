@@ -308,7 +308,7 @@ export default function App() {
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = useState(false);
   const [isClassListOpen, setIsClassListOpen] = useState(false);
   const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [selectedClassId, setSelectedClassId] = useState('');
   const [isAddingClass, setIsAddingClass] = useState(false);
   const [className, setClassName] = useState('');
