@@ -88,11 +88,11 @@ textarea {
   }
 
   .hallmark-panel {
-    @apply rounded-[2rem] border border-natural-border bg-natural-panel shadow-[0_22px_60px_rgba(15,41,56,0.08)];
+    @apply rounded-[2rem] border border-natural-border bg-natural-panel shadow-[0_14px_34px_rgba(15,41,56,0.06)];
   }
 
   .hallmark-button-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-natural-heading px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_18px_40px_rgba(15,41,56,0.18)] hover:bg-natural-text;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-natural-heading px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(15,41,56,0.14)] hover:bg-natural-text;
   }
 
   .hallmark-button-secondary {
@@ -100,10 +100,30 @@ textarea {
   }
 
   .hallmark-eyebrow {
-    @apply text-[10px] font-bold uppercase tracking-[0.24em] text-natural-text/45;
+    @apply text-[10px] font-bold uppercase tracking-[0.18em] text-natural-text/60;
   }
 
   .hallmark-input {
-    @apply w-full rounded-[1.5rem] border border-natural-border bg-white px-5 py-4 text-base font-semibold text-natural-heading outline-none focus:border-natural-accent;
+    @apply w-full rounded-[1.35rem] border border-natural-border bg-white px-4 py-3 text-sm font-semibold text-natural-heading outline-none focus:border-natural-accent sm:rounded-[1.5rem] sm:px-5 sm:py-3.5 sm:text-base;
+  }
+
+  .type-display {
+    @apply font-serif text-[2rem] leading-[1.02] text-natural-heading sm:text-[2.6rem];
+  }
+
+  .type-heading {
+    @apply font-serif text-xl leading-tight text-natural-heading sm:text-2xl;
+  }
+
+  .type-title {
+    @apply text-base font-semibold leading-tight text-natural-heading sm:text-lg;
+  }
+
+  .type-body {
+    @apply text-sm leading-6 text-natural-muted sm:text-base;
+  }
+
+  .type-caption {
+    @apply text-[11px] font-semibold leading-5 text-natural-text/60;
   }
 }

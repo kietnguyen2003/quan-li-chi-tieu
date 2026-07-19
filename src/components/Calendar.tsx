@@ -9,6 +9,7 @@ interface CalendarProps {
   dayCheckIns: Record<string, ClassCheckIn[]>;
   monthStart: Date;
   classes: TeachingClass[];
+  selectedDay: Date | null;
   onSelectDay: (day: Date) => void;
 }
 
@@ -17,6 +18,7 @@ export function Calendar({
   dayCheckIns,
   monthStart,
   classes,
+  selectedDay,
   onSelectDay,
 }: CalendarProps) {
   const classMap = new Map(classes.map((classItem) => [classItem.id, classItem]));
@@ -39,6 +41,13 @@ export function Calendar({
           const checkIns = dayCheckIns[dateKey] ?? [];
           const isCurrentMonth = isSameMonth(day, monthStart);
           const isToday = isSameDay(day, new Date());
+          const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
+          const previewCheckIns = checkIns.slice(0, 2);
+          const hiddenCount = Math.max(0, checkIns.length - previewCheckIns.length);
+          const totalAmount = checkIns.reduce((total, checkIn) => {
+            const classItem = classMap.get(checkIn.classId);
+            return total + resolveSessionAmount(checkIn, classItem);
+          }, 0);
 
           return (
             <motion.button
@@ -48,7 +57,8 @@ export function Calendar({
               className={`
                 group relative flex min-h-[78px] flex-col items-start justify-start border-r border-b border-natural-border-light p-1.5 text-left transition-all hover:bg-white/90 md:min-h-[118px] md:p-3
                 ${!isCurrentMonth ? 'pointer-events-none bg-natural-bg/35 opacity-30 select-none' : 'bg-white/55'}
-                ${isToday ? 'ring-1 ring-inset ring-natural-accent/60' : ''}
+                ${isSelected ? 'bg-natural-surface ring-2 ring-inset ring-natural-heading/70' : ''}
+                ${!isSelected && isToday ? 'ring-1 ring-inset ring-natural-accent/60' : ''}
                 ${checkIns.length > 0 ? 'bg-natural-panel shadow-inner shadow-natural-heading/5' : ''}
               `}
             >
@@ -56,39 +66,37 @@ export function Calendar({
                 className={`
                   mb-1 inline-flex min-w-[1.8rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-serif md:text-base
                   ${!isCurrentMonth ? 'text-natural-text/20' : 'text-natural-text/55'}
-                  ${isToday ? 'bg-natural-heading text-white' : 'group-hover:text-natural-heading'}
+                  ${isSelected ? 'bg-natural-heading text-white' : ''}
+                  ${!isSelected && isToday ? 'text-natural-heading' : ''}
+                  ${!isSelected ? 'group-hover:text-natural-heading' : ''}
                 `}
               >
                 {format(day, 'd')}
               </span>
 
               <div className="flex w-full min-w-0 flex-col gap-1 overflow-hidden no-scrollbar">
-                {checkIns.slice(0, 3).map((checkIn) => {
+                {previewCheckIns.map((checkIn) => {
                   const classItem = classMap.get(checkIn.classId);
-                  const lineLabel = checkIn.timeRange
-                    ? `${classItem?.name ?? 'Lop da xoa'} • ${checkIn.timeRange}`
-                    : classItem?.name ?? 'Lop da xoa';
+                  const lineLabel = classItem?.name ?? 'Lớp đã xóa';
 
                   return (
                     <div
                       key={checkIn.id}
-                      className="truncate rounded-full border border-natural-border bg-white/95 px-1.5 py-1 text-[7px] font-bold text-natural-heading md:text-[9px]"
+                      className="truncate rounded-full border border-natural-border bg-white/95 px-1.5 py-0.5 text-[6.5px] font-bold text-natural-heading md:px-2 md:py-1 md:text-[8px]"
                       title={lineLabel}
                     >
                       {lineLabel}
                     </div>
                   );
                 })}
+                {hiddenCount > 0 ? (
+                  <div className="truncate rounded-full border border-dashed border-natural-border bg-white/80 px-1.5 py-0.5 text-[6.5px] font-bold text-natural-text/65 md:px-2 md:py-1 md:text-[8px]">
+                    {checkIns.length} lớp
+                  </div>
+                ) : null}
                 {checkIns.length > 0 && (
-                  <div className="pt-0.5 text-[7px] font-bold uppercase tracking-[0.16em] text-natural-text/36 md:text-[8px]">
-                    {formatCurrency(
-                      checkIns.reduce((total, checkIn) => {
-                        const classItem = classMap.get(checkIn.classId);
-                        const sessionAmount = resolveSessionAmount(checkIn, classItem);
-
-                        return total + sessionAmount;
-                      }, 0),
-                    ).replace(' ₫', '').replace(' ₫', '')}
+                  <div className="text-[8px] font-semibold text-natural-heading/70 md:text-[9px]">
+                    {formatCurrency(totalAmount).replace(' ₫', '').replace(' ₫', '')}
                   </div>
                 )}
               </div>

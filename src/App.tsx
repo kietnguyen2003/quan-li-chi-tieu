@@ -21,10 +21,9 @@ import {
   ChevronDown,
   Copy,
   Download,
-  Pencil,
+  MoreHorizontal,
   Plus,
   SlidersHorizontal,
-  Upload,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -42,11 +41,13 @@ import { formatCurrency, loadStoredValue } from './utils.ts';
 const STORAGE_KEY_REGULAR_CHECK_INS = 'class_checkin_records';
 const STORAGE_KEY_REGULAR_CLASSES = 'class_checkin_classes';
 const BULK_IMPORT_EXAMPLE = `Keming
+160000
 6/7: 9h30 -> 11h
 8/7: 10h30 -> 12h
 15/7: 9h30 -> 11h
 
 Lyra:
+120000
 6/7: 3h -> 4h
 8/7: 3h -> 4h
 13/7: 3h -> 4h
@@ -54,6 +55,7 @@ Lyra:
 
 interface ParsedSession {
   className: string;
+  classSalary: number | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -65,6 +67,18 @@ const normalizeClassKey = (value: string) => value.trim().toLocaleLowerCase('vi-
 
 const normalizeTimeRange = (value: string) => {
   return value.replace(/\s*->\s*/g, ' -> ').replace(/\s+/g, ' ').trim();
+};
+
+const parseSalaryLine = (value: string) => {
+  const normalizedValue = value.replace(/[.\s,₫đ]/gi, '').trim();
+
+  if (!normalizedValue || !/^\d+$/.test(normalizedValue)) {
+    return null;
+  }
+
+  const salary = Number(normalizedValue);
+
+  return Number.isFinite(salary) ? salary : null;
 };
 
 const padTimeUnit = (value: number) => String(value).padStart(2, '0');
@@ -209,6 +223,7 @@ const parseBulkSchedule = (input: string): { sessions: ParsedSession[]; error: s
   const lines = input.split('\n').map((line) => line.trim());
   const sessions: ParsedSession[] = [];
   let currentClassName = '';
+  let currentClassSalary: number | null = null;
 
   for (const line of lines) {
     if (!line) {
@@ -221,7 +236,7 @@ const parseBulkSchedule = (input: string): { sessions: ParsedSession[]; error: s
       if (!currentClassName) {
         return {
           sessions: [],
-          error: `Dong "${line}" chua co ten lop o phia truoc.`,
+          error: `Dòng "${line}" chưa có tên lớp ở phía trước.`,
         };
       }
 
@@ -236,19 +251,20 @@ const parseBulkSchedule = (input: string): { sessions: ParsedSession[]; error: s
       if (!parsedDate) {
         return {
           sessions: [],
-          error: `Khong doc duoc ngay "${dateText}".`,
+          error: `Không đọc được ngày "${dateText}".`,
         };
       }
 
       if (startMinutes === null || endMinutes === null || sessionHours === null) {
         return {
           sessions: [],
-          error: `Khong doc duoc khung gio "${rawTimeText}".`,
+          error: `Không đọc được khung giờ "${rawTimeText}".`,
         };
       }
 
       sessions.push({
         className: currentClassName,
+        classSalary: currentClassSalary,
         date: parsedDate.toISOString(),
         startTime: formatMinutesToTime24h(startMinutes),
         endTime: formatMinutesToTime24h(endMinutes),
@@ -258,13 +274,21 @@ const parseBulkSchedule = (input: string): { sessions: ParsedSession[]; error: s
       continue;
     }
 
+    const parsedSalary = parseSalaryLine(line);
+
+    if (currentClassName && currentClassSalary === null && parsedSalary !== null) {
+      currentClassSalary = parsedSalary;
+      continue;
+    }
+
     currentClassName = line.replace(/:\s*$/, '').trim();
+    currentClassSalary = null;
   }
 
   if (!sessions.length) {
     return {
       sessions: [],
-      error: 'Chua tim thay buoi hoc hop le trong noi dung da nhap.',
+      error: 'Chưa tìm thấy buổi học hợp lệ trong nội dung đã nhập.',
     };
   }
 
@@ -283,6 +307,7 @@ export default function App() {
   const [isDayListOpen, setIsDayListOpen] = useState(false);
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = useState(false);
   const [isClassListOpen, setIsClassListOpen] = useState(false);
+  const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [isAddingClass, setIsAddingClass] = useState(false);
@@ -381,6 +406,7 @@ export default function App() {
 
   const closeManageClassesModal = () => {
     setIsManageClassesOpen(false);
+    setIsEditClassModalOpen(false);
     setEditingClassId('');
     setEditingClassName('');
     setEditingClassSalary('');
@@ -448,21 +474,36 @@ export default function App() {
     const classIdByKey = new Map(
       nextClasses.map((classItem) => [normalizeClassKey(classItem.name), classItem.id]),
     );
+    const classSalaryByKey = new Map<string, number>();
 
     for (const session of sessions) {
       const classKey = normalizeClassKey(session.className);
+      const importedSalary = session.classSalary;
+
+      if (importedSalary !== null && !classSalaryByKey.has(classKey)) {
+        classSalaryByKey.set(classKey, importedSalary);
+      }
 
       if (!classIdByKey.has(classKey)) {
         const newClass: TeachingClass = {
           id: crypto.randomUUID(),
           name: session.className,
-          salary: 0,
+          salary: importedSalary ?? 0,
           note: '',
           durationHours: session.sessionHours,
         };
 
         nextClasses.push(newClass);
         classIdByKey.set(classKey, newClass.id);
+      }
+    }
+
+    for (const classItem of nextClasses) {
+      const classKey = normalizeClassKey(classItem.name);
+      const importedSalary = classSalaryByKey.get(classKey);
+
+      if (importedSalary !== undefined) {
+        classItem.salary = importedSalary;
       }
     }
 
@@ -521,6 +562,16 @@ export default function App() {
     });
   };
 
+  const handleRequestDeleteCheckIn = (checkInId: string) => {
+    const shouldDelete = window.confirm('Bạn có chắc muốn xóa buổi check-in này không?');
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    handleDeleteCheckIn(checkInId);
+  };
+
   const handleExportData = () => {
     setIsExportOpen(true);
     setExportCopied(false);
@@ -565,23 +616,23 @@ export default function App() {
         }, 0);
 
         const sessionLines = classCheckIns.map((checkIn) => {
-          return `${format(parseISO(checkIn.date), 'd/M')}: ${checkIn.timeRange ?? 'Chua co gio hoc'}`;
+          return `${format(parseISO(checkIn.date), 'd/M')}: ${checkIn.timeRange ?? 'Chưa có giờ học'}`;
         });
 
         return [
           `${classItem.name}:`,
           ...sessionLines,
-          `Tong gio: ${totalHours}h`,
-          `Tong tien: ${formatCurrency(totalAmount)}`,
+          `Tổng giờ: ${totalHours}h`,
+          `Tổng tiền: ${formatCurrency(totalAmount)}`,
         ].join('\n');
       })
       .join('\n\n');
 
     return [
       classSections,
-      'Tong cong:',
-      `Tong gio: ${grandTotalHours}h`,
-      `Tong tien: ${formatCurrency(grandTotalAmount)}`,
+      'Tổng cộng:',
+      `Tổng giờ: ${grandTotalHours}h`,
+      `Tổng tiền: ${formatCurrency(grandTotalAmount)}`,
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -602,6 +653,7 @@ export default function App() {
     setEditingClassSalary(String(classItem.salary));
     setEditingClassDurationHours(String(classItem.durationHours));
     setEditingClassNote(classItem.note);
+    setIsEditClassModalOpen(true);
   };
 
   const handleUpdateClass = () => {
@@ -660,7 +712,7 @@ export default function App() {
       setSelectedClassId(editingClassId);
     }
 
-    closeManageClassesModal();
+    setIsEditClassModalOpen(false);
   };
 
   return (
@@ -669,26 +721,25 @@ export default function App() {
         currentDate={currentDate}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
-        title="Class Check-in"
-        subtitle="Theo doi lich day"
+        title="Check-in lớp học"
+        subtitle="Theo dõi lịch dạy"
       />
       <main className="mx-auto max-w-5xl p-3 sm:p-4 md:p-6">
         <section className="mb-4">
           <div className="mb-3 flex flex-col gap-2 px-1 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
-              <p className="hallmark-eyebrow">Calendar ledger</p>
-              <h3 className="mt-2 font-serif text-2xl text-natural-heading">Lich day theo thang</h3>
+              <p className="hallmark-eyebrow">Lịch dạy theo tháng</p>
             </div>
             <div className="hidden flex-col gap-3 md:flex md:items-end">
-              <p className="max-w-sm text-sm text-natural-muted md:text-right">
-                Chon mot ngay trong lich de xem buoi da day hoac tao check-in moi.
+              <p className="type-body max-w-sm md:text-right">
+                Chọn một ngày trong lịch để xem buổi đã dạy hoặc tạo check-in mới.
               </p>
               <button
                 type="button"
                 onClick={() => setIsWorkspacePanelOpen(true)}
                 className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-natural-border bg-white/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-heading shadow-sm hover:border-natural-accent md:self-auto"
               >
-                Tien ich va tong quan
+                Tiện ích và tổng quan
                 <ChevronDown className="h-4 w-4" />
               </button>
             </div>
@@ -698,6 +749,7 @@ export default function App() {
             dayCheckIns={dayCheckIns}
             monthStart={monthStart}
             classes={classes}
+            selectedDay={selectedDay}
             onSelectDay={(day) => {
               setSelectedDay(day);
               setIsDayListOpen(true);
@@ -726,9 +778,9 @@ export default function App() {
             >
               <div className="mb-4 flex items-start justify-between gap-4 sm:mb-6">
                 <div>
-                  <p className="hallmark-eyebrow">Workspace drawer</p>
-                  <h3 className="mt-2 font-serif text-2xl text-natural-heading">
-                    Tien ich va tong quan
+                  <p className="hallmark-eyebrow">Bảng tiện ích</p>
+                  <h3 className="type-heading mt-2">
+                    Tiện ích và tổng quan
                   </h3>
                 </div>
                 <button
@@ -739,13 +791,13 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="mb-4 rounded-[2rem] border border-natural-border/70 bg-white/65 px-4 py-3 text-[8px] font-bold uppercase tracking-[0.14em] text-natural-text/45 shadow-sm backdrop-blur-sm md:text-[9px] md:tracking-[0.18em]">
+              <div className="mb-4 rounded-[2rem] border border-natural-border/70 bg-white/65 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.12em] text-natural-text/60 shadow-sm backdrop-blur-sm md:text-[10px] md:tracking-[0.16em]">
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
                   <div className="flex items-center gap-1.5">
-                    <div className="h-2 w-2 rounded-full bg-natural-accent"></div> Buoi da check-in
+                    <div className="h-2 w-2 rounded-full bg-natural-accent"></div> Buổi đã check-in
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="h-2 w-2 rounded-full bg-natural-heading"></div> Tong luong ngay
+                    <div className="h-2 w-2 rounded-full bg-natural-heading"></div> Tổng lương ngày
                   </div>
                 </div>
               </div>
@@ -756,62 +808,69 @@ export default function App() {
                   monthCheckInCount={monthCheckInCount}
                 />
                 <section className="hallmark-panel px-4 py-4 sm:px-6 sm:py-5">
-                  <p className="hallmark-eyebrow">Main flow</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <button
-                      onClick={() => {
-                        setIsWorkspacePanelOpen(false);
-                        openCheckInModal(new Date());
-                      }}
-                      className="rounded-[1.6rem] border border-natural-border bg-white px-4 py-4 text-left shadow-sm hover:-translate-y-0.5 hover:border-natural-accent"
-                    >
-                      <p className="text-sm font-semibold text-natural-heading">Check-in ngay</p>
-                      <p className="mt-1 text-sm text-natural-muted">
-                        Mo phieu diem danh va chon lop.
-                      </p>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsWorkspacePanelOpen(false);
-                        setIsManageClassesOpen(true);
-                      }}
-                      className="rounded-[1.6rem] border border-natural-border bg-white px-4 py-4 text-left shadow-sm hover:-translate-y-0.5 hover:border-natural-accent"
-                    >
-                      <p className="text-sm font-semibold text-natural-heading">Cap nhat lop</p>
-                      <p className="mt-1 text-sm text-natural-muted">
-                        Sua luong, thoi luong va ghi chu.
-                      </p>
-                    </button>
-                  </div>
+                  <div className="space-y-5">
+                    <div>
+                      <p className="hallmark-eyebrow">Hôm nay</p>
+                      <div className="mt-3 grid gap-3">
+                        <button
+                          onClick={() => {
+                            setIsWorkspacePanelOpen(false);
+                            openCheckInModal(new Date());
+                          }}
+                          className="rounded-[1.6rem] border border-natural-border bg-white px-4 py-4 text-left shadow-sm hover:-translate-y-0.5 hover:border-natural-accent"
+                        >
+                          <p className="type-title">+ Check-in ngay</p>
+                          <p className="type-body mt-1">
+                            Mở phiếu điểm danh và chọn lớp.
+                          </p>
+                        </button>
+                      </div>
+                    </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <button
-                      onClick={() => {
-                        setIsWorkspacePanelOpen(false);
-                        handleExportData();
-                      }}
-                      className="hallmark-button-secondary"
-                    >
-                      <Download className="h-4 w-4" /> Xuat du lieu
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsWorkspacePanelOpen(false);
-                        setIsManageClassesOpen(true);
-                      }}
-                      className="hallmark-button-secondary"
-                    >
-                      <Pencil className="h-4 w-4" /> Danh sach lop
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsWorkspacePanelOpen(false);
-                        setIsBulkImportOpen(true);
-                      }}
-                      className="hallmark-button-primary"
-                    >
-                      <Upload className="h-4 w-4" /> Nhap nhanh lich day
-                    </button>
+                    <div>
+                      <p className="hallmark-eyebrow">Quản lý</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <button
+                          onClick={() => {
+                            setIsWorkspacePanelOpen(false);
+                            setIsManageClassesOpen(true);
+                          }}
+                          className="rounded-[1.6rem] border border-natural-border bg-white px-4 py-4 text-left shadow-sm hover:-translate-y-0.5 hover:border-natural-accent"
+                        >
+                          <p className="type-title">Quản lý lớp</p>
+                          <p className="type-body mt-1">
+                            Xem danh sách và chỉnh sửa từng lớp.
+                          </p>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsWorkspacePanelOpen(false);
+                            setIsBulkImportOpen(true);
+                          }}
+                          className="rounded-[1.6rem] border border-natural-border bg-white px-4 py-4 text-left shadow-sm hover:-translate-y-0.5 hover:border-natural-accent"
+                        >
+                          <p className="type-title">Nhập lịch dạy</p>
+                          <p className="type-body mt-1">
+                            Dán nhanh danh sách buổi đã dạy.
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="hallmark-eyebrow">Dữ liệu</p>
+                      <div className="mt-3 grid gap-2">
+                        <button
+                          onClick={() => {
+                            setIsWorkspacePanelOpen(false);
+                            handleExportData();
+                          }}
+                          className="hallmark-button-secondary"
+                        >
+                          <Download className="h-4 w-4" /> Xuất dữ liệu
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </section>
               </div>
@@ -821,13 +880,14 @@ export default function App() {
       </AnimatePresence>
 
       <motion.button
-        whileHover={{ scale: 1.05, rotate: 5 }}
-        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => openCheckInModal(new Date())}
-        className="group fixed bottom-6 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-natural-heading text-white shadow-[0_20px_44px_rgba(15,41,56,0.28)] sm:bottom-10 sm:right-10 sm:h-16 sm:w-16"
+        className="group fixed bottom-6 right-5 z-20 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/70 bg-natural-heading px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_20px_44px_rgba(15,41,56,0.28)] sm:bottom-10 sm:right-10 sm:h-14 sm:px-5 sm:text-[11px]"
         id="add-checkin-fab"
       >
-        <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
+        <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+        Check-in
       </motion.button>
 
       <motion.button
@@ -838,7 +898,7 @@ export default function App() {
         id="workspace-drawer-btn"
       >
         <SlidersHorizontal className="h-4 w-4" />
-        Cong cu
+        Công cụ
       </motion.button>
 
       <AnimatePresence>
@@ -860,7 +920,7 @@ export default function App() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-xl font-serif text-natural-heading">
-                    Lich day trong ngay
+                    Lịch dạy trong ngày
                   </h3>
                   <p className="text-natural-text/40 font-bold text-[10px] uppercase tracking-widest mt-1">
                     {format(selectedDay, 'dd MMMM yyyy', { locale: vi })}
@@ -888,10 +948,10 @@ export default function App() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-bold text-sm text-natural-heading">
-                              {classItem?.name ?? 'Lop khong ton tai'}
+                              {classItem?.name ?? 'Lớp không tồn tại'}
                             </p>
                             <p className="text-[10px] text-natural-text/40 uppercase tracking-widest font-bold mt-1">
-                              {checkIn.timeRange || 'Chua co gio hoc'}
+                              {checkIn.timeRange || 'Chưa có giờ học'}
                             </p>
                           </div>
                           <div className="text-right">
@@ -899,10 +959,11 @@ export default function App() {
                               {formatCurrency(sessionAmount)}
                             </p>
                             <button
-                              onClick={() => handleDeleteCheckIn(checkIn.id)}
-                              className="mt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-natural-warning transition-colors hover:text-natural-heading"
+                              onClick={() => handleRequestDeleteCheckIn(checkIn.id)}
+                              className="mt-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-natural-border bg-white text-natural-text/55 transition-colors hover:border-natural-warning hover:text-natural-warning"
+                              aria-label="Xóa buổi check-in"
                             >
-                              Xoa
+                              <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
@@ -916,8 +977,8 @@ export default function App() {
                   })
                 ) : (
                   <div className="py-12 text-center">
-                    <p className="text-natural-text/30 font-serif text-lg">
-                      Chua co check-in
+                    <p className="type-heading text-natural-text/40">
+                      Chưa có check-in
                     </p>
                   </div>
                 )}
@@ -927,7 +988,7 @@ export default function App() {
                 onClick={() => openCheckInModal(selectedDay)}
                 className="w-full py-4 bg-natural-heading text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-natural-heading/20 active:scale-95 transition-transform"
               >
-                <Plus className="w-5 h-5" /> Check-in buoi hoc
+                <Plus className="w-5 h-5" /> Check-in buổi học
               </button>
             </motion.div>
           </div>
@@ -953,10 +1014,10 @@ export default function App() {
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-serif text-natural-heading">
-                    Xuat du lieu
+                    Xuất dữ liệu
                   </h3>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
-                    Dung format nhu nhap nhanh, co them tong gio va tong tien
+                    Dùng format như nhập nhanh, có thêm tổng giờ và tổng tiền
                   </p>
                 </div>
                 <button
@@ -979,13 +1040,13 @@ export default function App() {
                   onClick={handleCopyExport}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-[2rem] bg-natural-heading py-4 font-bold text-white shadow-lg shadow-natural-heading/20 transition-transform active:scale-[0.98]"
                 >
-                  <Copy className="h-4 w-4" /> {exportCopied ? 'Da copy' : 'Copy noi dung'}
+                  <Copy className="h-4 w-4" /> {exportCopied ? 'Đã copy' : 'Copy nội dung'}
                 </button>
                 <button
                   onClick={closeExportModal}
                   className="rounded-[2rem] border border-natural-border px-5 py-4 font-bold text-natural-heading transition-colors hover:bg-natural-surface"
                 >
-                  Dong
+                  Đóng
                 </button>
               </div>
             </motion.div>
@@ -1011,11 +1072,11 @@ export default function App() {
             >
               <div className="mb-4 flex items-start justify-between gap-3 sm:mb-6 sm:items-center sm:gap-4">
                 <div>
-                  <h3 className="text-base font-serif text-natural-heading sm:text-xl">
-                    Danh sach lop day
+                  <h3 className="type-heading text-base sm:text-xl">
+                    Danh sách lớp dạy
                   </h3>
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em] text-natural-text/40 sm:text-[10px] sm:tracking-widest">
-                    Xem va chinh sua thong tin tung lop
+                    Xem và chỉnh sửa thông tin từng lớp
                   </p>
                 </div>
                 <button
@@ -1026,8 +1087,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid h-[calc(100%-3.5rem)] gap-3 overflow-hidden lg:grid-cols-[0.95fr_1.05fr] lg:gap-5">
-                <div className="space-y-2 overflow-y-auto no-scrollbar pr-1">
+              <div className="space-y-2 overflow-y-auto no-scrollbar pr-1">
                   {classes.length ? (
                     classes.map((classItem) => {
                       const isEditing = editingClassId === classItem.id;
@@ -1046,11 +1106,11 @@ export default function App() {
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <div>
-                              <p className="text-sm font-bold text-natural-heading sm:text-base">
+                              <p className="type-title text-sm sm:text-base">
                                 {classItem.name}
                               </p>
                               <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-natural-text/40 sm:text-[10px] sm:tracking-[0.2em]">
-                                {classItem.durationHours} gio moi buoi
+                                {classItem.durationHours} giờ mỗi buổi
                               </p>
                               {classItem.note ? (
                                 <p className="mt-2 line-clamp-2 text-xs text-natural-text/70 sm:mt-3 sm:text-sm">
@@ -1058,94 +1118,127 @@ export default function App() {
                                 </p>
                               ) : null}
                             </div>
-                            <p className="text-left text-base font-bold text-natural-accent sm:text-right sm:text-base">
-                              {formatCurrency(classItem.salary)}/gio
-                            </p>
+                            <div className="text-left sm:text-right">
+                              <p className="text-base font-bold text-natural-accent sm:text-base">
+                                {formatCurrency(classItem.salary)}/giờ
+                              </p>
+                              {isEditing ? (
+                                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-heading/55">
+                                  Đang mở form
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
                         </button>
                       );
                     })
                   ) : (
                     <div className="rounded-[2rem] border border-natural-border bg-natural-surface px-6 py-10 text-center text-natural-text/35 font-serif">
-                      Chua co lop nao de chinh sua.
+                      Chưa có lớp nào để chỉnh sửa.
                     </div>
                   )}
+              </div>
+            </motion.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isEditClassModalOpen && editingClassId ? (
+          <div className="fixed inset-0 z-[76] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditClassModalOpen(false)}
+              className="absolute inset-0 bg-natural-heading/45 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 12 }}
+              className="relative w-full max-w-2xl rounded-[2rem] border border-natural-border bg-white p-5 shadow-2xl sm:rounded-[2.5rem] sm:p-8"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="hallmark-eyebrow">Chỉnh sửa lớp</p>
+                  <h3 className="mt-2 font-serif text-xl text-natural-heading sm:text-2xl">
+                    {editingClassName || 'Chỉnh sửa lớp'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsEditClassModalOpen(false)}
+                  className="rounded-full p-2 text-natural-text/30 transition-colors hover:text-natural-warning"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 sm:space-y-4">
+                <div>
+                  <label className="block px-1 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-text/60 sm:pb-3">
+                    Tên lớp
+                  </label>
+                  <input
+                    type="text"
+                    value={editingClassName}
+                    onChange={(event) => setEditingClassName(event.target.value)}
+                    className="hallmark-input px-4 py-3 text-sm sm:px-5 sm:py-4 sm:text-base"
+                  />
                 </div>
 
-                <div className="overflow-y-auto rounded-[1.5rem] border border-natural-border bg-natural-surface p-3 sm:rounded-[2rem] sm:p-6">
-                  {editingClassId ? (
-                    <div className="space-y-3 sm:space-y-4">
-                      <div>
-                        <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
-                          Ten lop
-                        </label>
-                        <input
-                          type="text"
-                          value={editingClassName}
-                          onChange={(event) => setEditingClassName(event.target.value)}
-                          className="w-full rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 font-bold text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
-                        />
-                      </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block px-1 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-text/60 sm:pb-3">
+                      Lương mỗi giờ
+                    </label>
+                    <input
+                      type="number"
+                      value={editingClassSalary}
+                      onChange={(event) => setEditingClassSalary(event.target.value)}
+                      className="hallmark-input px-4 py-3 text-sm sm:px-5 sm:py-4 sm:text-base"
+                    />
+                  </div>
+                  <div>
+                    <label className="block px-1 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-text/60 sm:pb-3">
+                      Số giờ học
+                    </label>
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      value={editingClassDurationHours}
+                      onChange={(event) => setEditingClassDurationHours(event.target.value)}
+                      className="hallmark-input px-4 py-3 text-sm sm:px-5 sm:py-4 sm:text-base"
+                    />
+                  </div>
+                </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
-                            Luong moi gio
-                          </label>
-                          <input
-                            type="number"
-                            value={editingClassSalary}
-                            onChange={(event) => setEditingClassSalary(event.target.value)}
-                            className="w-full rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 font-bold text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
-                          />
-                        </div>
-                        <div>
-                          <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
-                            So gio hoc
-                          </label>
-                          <input
-                            type="number"
-                            min="0.5"
-                            step="0.5"
-                            value={editingClassDurationHours}
-                            onChange={(event) => setEditingClassDurationHours(event.target.value)}
-                            className="w-full rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 font-bold text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
-                          />
-                        </div>
-                      </div>
+                <div>
+                  <label className="block px-1 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-text/60 sm:pb-3">
+                    Ghi chú
+                  </label>
+                  <textarea
+                    value={editingClassNote}
+                    onChange={(event) => setEditingClassNote(event.target.value)}
+                    rows={3}
+                    className="hallmark-input resize-none px-4 py-3 text-sm sm:px-5 sm:py-4 sm:text-base"
+                  />
+                </div>
 
-                      <div>
-                        <label className="block px-1 pb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-natural-text/50 sm:mb-3 sm:text-[10px] sm:tracking-[0.25em]">
-                          Ghi chu
-                        </label>
-                        <textarea
-                          value={editingClassNote}
-                          onChange={(event) => setEditingClassNote(event.target.value)}
-                          rows={3}
-                          className="w-full resize-none rounded-[1.25rem] border border-natural-border bg-white px-4 py-3 text-sm outline-none sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:gap-3 sm:pt-2">
-                        <button
-                          onClick={handleUpdateClass}
-                          className="flex-1 rounded-[1.25rem] bg-natural-heading py-3 text-sm font-bold text-white shadow-lg shadow-natural-heading/20 transition-transform active:scale-[0.98] sm:rounded-2xl sm:py-4 sm:text-base"
-                        >
-                          Luu thay doi
-                        </button>
-                        <button
-                          onClick={closeManageClassesModal}
-                          className="rounded-[1.25rem] border border-natural-border px-4 py-3 text-sm font-bold text-natural-text/60 transition-colors hover:bg-white sm:rounded-2xl sm:px-5 sm:py-4 sm:text-base"
-                        >
-                          Dong
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex h-full min-h-[220px] items-center justify-center text-center text-sm text-natural-text/35 font-serif sm:min-h-[280px]">
-                      Chon mot lop o ben trai de chinh sua.
-                    </div>
-                  )}
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={handleUpdateClass}
+                    className="hallmark-button-primary flex-1 rounded-[1.25rem] py-3.5 sm:rounded-[1.5rem] sm:py-4"
+                  >
+                    Lưu thay đổi
+                  </button>
+                  <button
+                    onClick={() => setIsEditClassModalOpen(false)}
+                    className="hallmark-button-secondary rounded-[1.25rem] py-3.5 sm:rounded-[1.5rem] sm:py-4"
+                  >
+                    Đóng
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -1171,11 +1264,11 @@ export default function App() {
             >
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-serif text-natural-heading">
-                    Nhap danh sach buoi da day
+                  <h3 className="type-heading">
+                    Nhập danh sách buổi đã dạy
                   </h3>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-natural-text/40">
-                    Moi lop mot dong ten, cac dong duoi la ngay va gio hoc
+                    Tên lớp, dòng dưới là lương mỗi giờ, rồi đến ngày và giờ học
                   </p>
                 </div>
                 <button
@@ -1200,7 +1293,7 @@ export default function App() {
                 </p>
               ) : (
                 <p className="mt-4 text-sm text-natural-text/55">
-                  Neu lop chua ton tai, app se tu tao lop moi voi luong mac dinh la 0 moi gio.
+                  Nếu không có dòng lương, app sẽ giữ mức cũ hoặc dùng 0 cho lớp mới.
                 </p>
               )}
 
@@ -1209,13 +1302,13 @@ export default function App() {
                   onClick={handleBulkImport}
                   className="flex-1 rounded-[2rem] bg-natural-heading py-4 font-bold text-white shadow-lg shadow-natural-heading/20 transition-transform active:scale-[0.98]"
                 >
-                  Them len lich
+                  Thêm lên lịch
                 </button>
                 <button
                   onClick={() => setBulkImportValue(BULK_IMPORT_EXAMPLE)}
                   className="rounded-[2rem] border border-natural-border px-5 py-4 font-bold text-natural-heading transition-colors hover:bg-natural-surface"
                 >
-                  Nap lai vi du
+                  Nạp lại ví dụ
                 </button>
               </div>
             </motion.div>
@@ -1244,22 +1337,22 @@ export default function App() {
             >
               <div className="mb-4 flex items-start justify-between gap-3 sm:mb-8 sm:gap-4">
                 <div className="max-w-xl">
-                  <p className="hallmark-eyebrow">Check-in flow</p>
-                  <h2 className="mt-2 font-serif text-2xl text-natural-heading sm:mt-3 sm:text-4xl">
-                    Check-in lop hoc
+                  <p className="hallmark-eyebrow">Phiên check-in</p>
+                  <h2 className="type-display mt-2 sm:mt-3 sm:text-4xl">
+                    Check-in lớp học
                   </h2>
                   <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-natural-text/42 sm:mt-2 sm:text-xs sm:tracking-[0.22em]">
                     {format(selectedDay, 'eeee, dd MMMM', { locale: vi })}
                   </p>
-                  <p className="mt-2 text-xs leading-5 text-natural-muted sm:mt-3 sm:text-sm sm:leading-6">
-                    Chon gio, chon lop, roi xac nhan trong cung mot khung de thao tac nhanh hon.
+                  <p className="type-body mt-2 sm:mt-3">
+                    Chọn giờ, chọn lớp, rồi xác nhận trong cùng một khung để thao tác nhanh hơn.
                   </p>
                 </div>
                 <button
                   onClick={closeCheckInModal}
                   className="rounded-full px-2.5 py-2 text-sm font-bold text-natural-warning hover:bg-natural-warning/5 sm:p-3"
                 >
-                  Dong
+                  Đóng
                 </button>
               </div>
 
@@ -1268,7 +1361,7 @@ export default function App() {
                   <section className="rounded-[1.5rem] border border-natural-border bg-natural-panel px-4 py-4 shadow-sm sm:rounded-[2rem] sm:px-5 sm:py-5">
                     <div className="grid gap-3 sm:gap-4">
                       <div className="rounded-[1.25rem] border border-natural-border-light bg-white/70 px-3.5 py-3 sm:px-4 sm:py-4">
-                        <label className="hallmark-eyebrow block pb-2 sm:pb-2.5">Bat dau luc</label>
+                        <label className="hallmark-eyebrow block pb-2 sm:pb-2.5">Bắt đầu lúc</label>
                         <input
                           type="time"
                           value={checkInStartTime}
@@ -1284,18 +1377,18 @@ export default function App() {
                       >
                         <div className="flex items-start justify-between gap-3 sm:gap-4">
                           <div>
-                            <p className="hallmark-eyebrow">Lop da chon</p>
-                            <p className="mt-1.5 text-lg font-semibold text-natural-heading sm:mt-2 sm:text-xl">
-                              {selectedClass ? selectedClass.name : 'Chua chon lop'}
+                            <p className="hallmark-eyebrow">Lớp đã chọn</p>
+                            <p className="type-title mt-1.5 text-lg sm:mt-2 sm:text-xl">
+                              {selectedClass ? selectedClass.name : 'Chưa chọn lớp'}
                             </p>
-                            <p className="mt-1.5 text-xs leading-5 text-natural-muted sm:mt-2 sm:text-sm">
+                            <p className="type-body mt-1.5 sm:mt-2">
                               {selectedClass
-                                ? `${selectedClass.durationHours} gio • ${formatCurrency(selectedClass.salary)}/gio`
-                                : 'Chon trong danh sach ben canh hoac tao lop moi ngay tai day.'}
+                                ? `${selectedClass.durationHours} giờ • ${formatCurrency(selectedClass.salary)}/giờ`
+                                : 'Bấm để mở popup chọn lớp hoặc tạo lớp mới ngay tại đây.'}
                             </p>
                           </div>
                           <span className="rounded-full border border-natural-border bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-natural-text/65 sm:px-3 sm:py-2 sm:text-[10px] sm:tracking-[0.18em]">
-                            {isClassListOpen ? 'Thu gon' : selectedClass ? 'Doi lop' : 'Chon lop'}
+                            {isClassListOpen ? 'Thu gọn' : selectedClass ? 'Đổi lớp' : 'Chọn lớp'}
                           </span>
                         </div>
 
@@ -1310,12 +1403,12 @@ export default function App() {
 
                   {selectedClass ? (
                     <section className="rounded-[1.5rem] border border-natural-border bg-natural-surface px-4 py-4 sm:rounded-[2rem] sm:px-5 sm:py-5">
-                      <p className="hallmark-eyebrow">Buoi hoc se tao</p>
-                      <p className="mt-2 text-xl font-semibold text-natural-heading sm:mt-3 sm:text-2xl">
-                        {selectedTimePreview?.timeRange ?? 'Khong doc duoc gio'}
+                      <p className="hallmark-eyebrow">Buổi học sẽ tạo</p>
+                      <p className="type-title mt-2 text-xl sm:mt-3 sm:text-2xl">
+                        {selectedTimePreview?.timeRange ?? 'Không đọc được giờ'}
                       </p>
-                      <p className="mt-1.5 text-xs leading-5 text-natural-muted sm:mt-2 sm:text-sm">
-                        {selectedClass.durationHours} gio x {formatCurrency(selectedClass.salary)}/gio ={' '}
+                      <p className="type-body mt-1.5 sm:mt-2">
+                        {selectedClass.durationHours} giờ x {formatCurrency(selectedClass.salary)}/giờ ={' '}
                         <span className="font-semibold text-natural-accent">
                           {formatCurrency(selectedClass.durationHours * selectedClass.salary)}
                         </span>
@@ -1334,7 +1427,7 @@ export default function App() {
                       }
                     `}
                   >
-                    Xac nhan check-in
+                    Xác nhận check-in
                   </button>
                 </div>
 
@@ -1358,12 +1451,12 @@ export default function App() {
                     >
                       <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5 sm:gap-4">
                         <div>
-                          <p className="hallmark-eyebrow">Danh sach lop</p>
-                          <p className="mt-2 text-lg font-semibold text-natural-heading sm:text-xl">
-                            Chon lop ngay tai day
+                          <p className="hallmark-eyebrow">Danh sách lớp</p>
+                          <p className="type-title mt-2 text-lg sm:text-xl">
+                            Chọn lớp ngay tại đây
                           </p>
-                          <p className="mt-1.5 text-xs leading-5 text-natural-muted sm:mt-2 sm:text-sm">
-                            Chon mot lop de check-in, hoac tao lop moi ngay trong popup nay.
+                          <p className="type-body mt-1.5 sm:mt-2">
+                            Chọn một lớp để check-in, hoặc tạo lớp mới ngay trong popup này.
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1371,7 +1464,7 @@ export default function App() {
                             onClick={() => setIsAddingClass(true)}
                             className="rounded-full border border-natural-border bg-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-natural-heading hover:border-natural-accent sm:px-4 sm:py-2 sm:text-[10px] sm:tracking-[0.18em]"
                           >
-                            Them lop
+                            Thêm lớp
                           </button>
                           <button
                             type="button"
@@ -1404,11 +1497,11 @@ export default function App() {
                             >
                               <div className="flex items-start justify-between gap-3 sm:gap-4">
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-semibold text-natural-heading sm:text-base">
+                                  <p className="type-title truncate text-sm sm:text-base">
                                     {classItem.name}
                                   </p>
                                   <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-natural-text/40 sm:text-[10px] sm:tracking-[0.2em]">
-                                    {classItem.durationHours} gio moi buoi
+                                    {classItem.durationHours} giờ mỗi buổi
                                   </p>
                                   {classItem.note ? (
                                     <p className="mt-2 line-clamp-2 text-xs leading-5 text-natural-muted sm:mt-3 sm:text-sm">
@@ -1418,11 +1511,11 @@ export default function App() {
                                 </div>
                                 <div className="shrink-0 text-right">
                                   <p className="text-sm font-semibold text-natural-accent sm:text-base">
-                                    {formatCurrency(classItem.salary)}/gio
+                                    {formatCurrency(classItem.salary)}/giờ
                                   </p>
                                   {isActive ? (
                                     <p className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-natural-accent sm:mt-2 sm:text-[10px] sm:tracking-[0.2em]">
-                                      Dang chon
+                                      Đang chọn
                                     </p>
                                   ) : null}
                                 </div>
@@ -1433,7 +1526,7 @@ export default function App() {
 
                         {!sortedClasses.length ? (
                           <div className="rounded-[1.25rem] border border-dashed border-natural-border bg-white/75 px-4 py-6 text-center text-xs leading-5 text-natural-text/45 sm:col-span-2 sm:rounded-[1.5rem] sm:px-5 sm:py-8 sm:text-sm">
-                            Chua co lop nao. Bam "Them lop" de tao lop dau tien.
+                            Chưa có lớp nào. Bấm "Thêm lớp" để tạo lớp đầu tiên.
                           </div>
                         ) : null}
                       </div>
@@ -1458,12 +1551,12 @@ export default function App() {
                     >
                       <div className="mb-4 flex items-start justify-between gap-3 sm:mb-5 sm:gap-4">
                         <div>
-                          <p className="hallmark-eyebrow">Quick add</p>
-                          <p className="mt-2 text-lg font-semibold text-natural-heading sm:text-xl">
-                            Tao lop moi ma khong roi khoi flow check-in
+                          <p className="hallmark-eyebrow">Tạo nhanh</p>
+                          <p className="type-title mt-2 text-lg sm:text-xl">
+                            Tạo lớp mới mà không rời khỏi flow check-in
                           </p>
-                          <p className="mt-1.5 text-xs leading-5 text-natural-muted sm:mt-2 sm:text-sm">
-                            Luu xong, lop moi se duoc chon ngay de ban tiep tuc check-in.
+                          <p className="type-body mt-1.5 sm:mt-2">
+                            Lưu xong, lớp mới sẽ được chọn ngay để bạn tiếp tục check-in.
                           </p>
                         </div>
                         <button
@@ -1477,19 +1570,19 @@ export default function App() {
 
                       <div className="space-y-3 sm:space-y-4">
                         <div>
-                          <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Ten lop</label>
+                          <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Tên lớp</label>
                           <input
                             type="text"
                             value={className}
                             onChange={(event) => setClassName(event.target.value)}
-                            placeholder="Vi du: Ban An, lop speaking..."
+                            placeholder="Ví dụ: Bạn An, lớp speaking..."
                             className="hallmark-input px-4 py-3 text-sm placeholder:text-natural-text/24 sm:px-5 sm:py-4 sm:text-base"
                           />
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div>
-                            <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Luong moi gio</label>
+                            <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Lương mỗi giờ</label>
                             <input
                               type="number"
                               value={classSalary}
@@ -1499,25 +1592,25 @@ export default function App() {
                             />
                           </div>
                           <div>
-                            <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">So gio hoc</label>
+                            <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Số giờ học</label>
                             <input
                               type="number"
                               min="0.5"
                               step="0.5"
                               value={classDurationHours}
                               onChange={(event) => setClassDurationHours(event.target.value)}
-                              placeholder="Vi du: 1.5"
+                              placeholder="Ví dụ: 1.5"
                               className="hallmark-input px-4 py-3 text-sm sm:px-5 sm:py-4 sm:text-base"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Ghi chu</label>
+                          <label className="hallmark-eyebrow block px-1 pb-2.5 sm:pb-3">Ghi chú</label>
                           <textarea
                             value={classNote}
                             onChange={(event) => setClassNote(event.target.value)}
-                            placeholder="Them ghi chu cho lop hoc..."
+                            placeholder="Thêm ghi chú cho lớp học..."
                             rows={3}
                             className="hallmark-input resize-none px-4 py-3 text-sm placeholder:text-natural-text/24 sm:px-5 sm:py-4 sm:text-base"
                           />
@@ -1528,13 +1621,13 @@ export default function App() {
                             onClick={handleSaveClass}
                             className="hallmark-button-primary flex-1 rounded-[1.25rem] py-3.5 text-[10px] sm:rounded-[1.5rem] sm:py-4 sm:text-[11px]"
                           >
-                            <Check className="h-5 w-5" /> Luu lop
+                            <Check className="h-5 w-5" /> Lưu lớp
                           </button>
                           <button
                             onClick={resetClassForm}
                             className="hallmark-button-secondary rounded-[1.25rem] py-3.5 text-[10px] sm:rounded-[1.5rem] sm:py-4 sm:text-[11px]"
                           >
-                            Huy
+                            Hủy
                           </button>
                         </div>
                       </div>

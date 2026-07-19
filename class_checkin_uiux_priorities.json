@@ -1,0 +1,238 @@
+{
+  "project": {
+    "name": "Class Check-in",
+    "platform": "Mobile app",
+    "target_users": [
+      "Quản lý",
+      "Người đi làm cần chấm công và theo dõi lịch làm việc"
+    ],
+    "status": "Đã hoàn thành thiết kế, chưa có người dùng thực tế",
+    "primary_goal": "Chấm công và quản lý lịch làm việc nhanh, rõ ràng"
+  },
+  "priority_scale": {
+    "P0": "Critical - phải sửa trước khi thử nghiệm với người dùng",
+    "P1": "High - nên sửa trong phiên bản đầu tiên",
+    "P2": "Medium - cải thiện sau khi hoàn thành các vấn đề chính",
+    "P3": "Low - polish giao diện và chuẩn hóa design system"
+  },
+  "tasks": [
+    {
+      "id": "UX-001",
+      "priority": "P0",
+      "area": "Calendar",
+      "title": "Đơn giản hóa thông tin trong từng ô lịch",
+      "problem": "Tên lớp bị rút gọn, có nhiều pill nhỏ và số tiền có độ tương phản thấp khiến người dùng khó quét nhanh lịch làm việc.",
+      "recommendation": [
+        "Chỉ hiển thị tối đa 1-2 tên lớp trong mỗi ngày.",
+        "Khi có nhiều lớp, hiển thị dạng '3 lớp' thay vì nhiều pill.",
+        "Cho phép chạm vào ngày để mở danh sách chi tiết.",
+        "Ưu tiên số ngày, số buổi và tổng tiền theo thứ tự rõ ràng."
+      ],
+      "expected_impact": "Giảm thời gian đọc lịch và giúp người dùng nhận biết ngày bận nhanh hơn.",
+      "effort": "High",
+      "status": "Done"
+    },
+    {
+      "id": "UX-002",
+      "priority": "P0",
+      "area": "Class management",
+      "title": "Tách danh sách lớp và biểu mẫu chỉnh sửa",
+      "problem": "Danh sách và form chỉnh sửa nằm trong cùng một màn hình cuộn dọc, khiến người dùng khó nhận biết đang chỉnh sửa lớp nào.",
+      "recommendation": [
+        "Màn hình đầu chỉ hiển thị danh sách lớp.",
+        "Chạm vào một lớp để mở màn hình hoặc bottom sheet chỉnh sửa riêng.",
+        "Hiển thị trạng thái được chọn rõ ràng khi vẫn giữ bố cục một màn hình.",
+        "Đặt tên lớp đang chỉnh sửa ở đầu form."
+      ],
+      "expected_impact": "Giảm nhầm lẫn, tránh sửa sai dữ liệu và làm flow quản lý lớp dễ hiểu hơn.",
+      "effort": "High",
+      "status": "Done"
+    },
+    {
+      "id": "UX-003",
+      "priority": "P0",
+      "area": "Primary action",
+      "title": "Làm rõ chức năng của nút dấu cộng",
+      "problem": "Nút FAB chỉ có biểu tượng dấu cộng nên người dùng không biết nút dùng để thêm lịch, thêm lớp hay check-in.",
+      "recommendation": [
+        "Đổi thành nút mở rộng có nhãn '+ Check-in'.",
+        "Hoặc mở action sheet với các lựa chọn rõ ràng.",
+        "Giữ check-in là hành động nổi bật nhất trên màn hình chính."
+      ],
+      "expected_impact": "Giảm đoán mò và tăng tốc độ hoàn thành tác vụ chính.",
+      "effort": "Medium",
+      "status": "Done"
+    },
+    {
+      "id": "UX-004",
+      "priority": "P1",
+      "area": "Calendar states",
+      "title": "Chuẩn hóa trạng thái ngày được chọn",
+      "problem": "Ngày được chọn vừa có viền vàng vừa có badge nền navy, tạo ra hai tín hiệu cạnh tranh.",
+      "recommendation": [
+        "Chỉ sử dụng một trạng thái chính: nền navy hoặc viền vàng.",
+        "Định nghĩa riêng trạng thái hôm nay, đang chọn và có lịch.",
+        "Không dùng cùng một màu để biểu thị nhiều ý nghĩa khác nhau."
+      ],
+      "expected_impact": "Giúp người dùng phân biệt hôm nay, ngày đang chọn và ngày có lịch.",
+      "effort": "Low",
+      "status": "Done"
+    },
+    {
+      "id": "UX-005",
+      "priority": "P1",
+      "area": "Daily schedule modal",
+      "title": "Giảm mức độ nổi bật của hành động xóa",
+      "problem": "Chữ 'Xóa' màu đỏ nằm trực tiếp trong card và cạnh thông tin tiền, dễ bị chạm nhầm và thu hút sự chú ý quá mức.",
+      "recommendation": [
+        "Đưa hành động xóa vào menu ba chấm.",
+        "Hoặc sử dụng thao tác swipe để hiển thị nút xóa.",
+        "Hiển thị hộp thoại xác nhận trước khi xóa."
+      ],
+      "expected_impact": "Giảm nguy cơ xóa nhầm lịch làm việc.",
+      "effort": "Low",
+      "status": "Done"
+    },
+    {
+      "id": "UX-006",
+      "priority": "P1",
+      "area": "Information architecture",
+      "title": "Nhóm lại các chức năng trong Workspace Drawer",
+      "problem": "Các hành động check-in, cập nhật lớp, xuất dữ liệu và nhập lịch đang được trình bày gần như cùng cấp.",
+      "recommendation": [
+        "Nhóm thành Hôm nay, Quản lý và Dữ liệu.",
+        "Đặt Check-in ngay ở vị trí đầu tiên.",
+        "Giảm độ nổi bật của các tác vụ ít dùng như xuất dữ liệu.",
+        "Sử dụng tên chức năng thống nhất giữa các màn hình."
+      ],
+      "expected_impact": "Người dùng tìm chức năng nhanh hơn và hiểu cấu trúc sản phẩm rõ hơn.",
+      "effort": "Medium",
+      "status": "Done"
+    },
+    {
+      "id": "UI-001",
+      "priority": "P1",
+      "area": "Accessibility",
+      "title": "Tăng độ tương phản cho chữ phụ",
+      "problem": "Các label uppercase và nội dung phụ màu xám quá nhạt trên nền trắng hoặc kem.",
+      "recommendation": [
+        "Tăng độ đậm hoặc độ tối của chữ phụ.",
+        "Kiểm tra contrast theo WCAG AA.",
+        "Tránh dùng chữ nhỏ, mảnh và letter-spacing lớn cùng lúc.",
+        "Ưu tiên cỡ chữ tối thiểu 14px cho nội dung quan trọng."
+      ],
+      "expected_impact": "Tăng khả năng đọc, đặc biệt khi dùng ngoài trời hoặc với người có thị lực yếu.",
+      "effort": "Low",
+      "status": "Done"
+    },
+    {
+      "id": "UI-002",
+      "priority": "P2",
+      "area": "Typography",
+      "title": "Giảm số lượng cấp độ typography",
+      "problem": "Một số màn hình sử dụng quá nhiều kiểu chữ, kích thước và letter-spacing khác nhau.",
+      "recommendation": [
+        "Chuẩn hóa thành Display, Heading, Title, Body và Caption.",
+        "Chỉ dùng serif cho tiêu đề cấp cao.",
+        "Giảm uppercase label ở các khu vực không cần thiết.",
+        "Tạo typography tokens dùng chung."
+      ],
+      "expected_impact": "Cải thiện hierarchy và giúp sản phẩm nhất quán hơn.",
+      "effort": "Medium",
+      "status": "Done"
+    },
+    {
+      "id": "UI-003",
+      "priority": "P2",
+      "area": "Forms",
+      "title": "Thu gọn input và khoảng cách trong biểu mẫu",
+      "problem": "Các input và textarea khá cao, khiến một form ngắn chiếm gần toàn bộ màn hình.",
+      "recommendation": [
+        "Giảm chiều cao input khoảng 15-20%.",
+        "Giảm khoảng cách dọc giữa label và field.",
+        "Chỉ để textarea lớn khi ghi chú là nội dung quan trọng.",
+        "Đặt đơn vị tiền và giờ trực tiếp trong field hoặc label."
+      ],
+      "expected_impact": "Giúp form gọn, dễ quét và giảm cuộn.",
+      "effort": "Low",
+      "status": "Done"
+    },
+    {
+      "id": "UI-004",
+      "priority": "P2",
+      "area": "Elevation",
+      "title": "Giảm số lượng shadow",
+      "problem": "Nhiều card và button đều có shadow nên mức độ phân lớp thị giác chưa rõ.",
+      "recommendation": [
+        "Chỉ dùng shadow cho modal, floating action và card tương tác quan trọng.",
+        "Dùng border hoặc thay đổi nền cho card thông thường.",
+        "Chuẩn hóa 2-3 elevation levels."
+      ],
+      "expected_impact": "Giao diện nhẹ hơn và hành động quan trọng nổi bật hơn.",
+      "effort": "Low",
+      "status": "Done"
+    },
+    {
+      "id": "DS-001",
+      "priority": "P2",
+      "area": "Design system",
+      "title": "Xây dựng semantic color system",
+      "problem": "Bảng màu hiện tại chủ yếu gồm navy, gold và đỏ, chưa đủ cho trạng thái vận hành thực tế.",
+      "recommendation": [
+        "Định nghĩa màu Success, Warning, Error, Info và Neutral.",
+        "Tạo trạng thái pending, completed, cancelled, paid và unpaid.",
+        "Không phụ thuộc hoàn toàn vào màu; kết hợp icon hoặc label."
+      ],
+      "expected_impact": "Giúp giao diện mở rộng tốt khi bổ sung nhiều trạng thái nghiệp vụ.",
+      "effort": "Medium",
+      "status": "Done"
+    },
+    {
+      "id": "UX-007",
+      "priority": "P2",
+      "area": "Content design",
+      "title": "Chuẩn hóa ngôn ngữ và cách viết",
+      "problem": "Một số nội dung đang trộn tiếng Anh và tiếng Việt, đồng thời thiếu dấu tiếng Việt.",
+      "recommendation": [
+        "Chọn một ngôn ngữ chính cho nội dung hướng đến người dùng.",
+        "Sửa các label như 'XÓA', 'Đóng', 'Số giờ học' và 'buổi đã check-in' cho nhất quán.",
+        "Thống nhất viết hoa, dấu câu và định dạng tiền tệ.",
+        "Hiển thị tiền theo dạng '120.000 ₫' thay vì '120.000 đ/gio' khi phù hợp."
+      ],
+      "expected_impact": "Tăng độ chuyên nghiệp và giảm tải nhận thức.",
+      "effort": "Low",
+      "status": "Todo"
+    },
+    {
+      "id": "TEST-001",
+      "priority": "P3",
+      "area": "Usability testing",
+      "title": "Thử nghiệm flow check-in với người dùng thật",
+      "problem": "Thiết kế chưa được kiểm chứng bằng hành vi sử dụng thực tế.",
+      "recommendation": [
+        "Test với tối thiểu 5 người thuộc nhóm người dùng mục tiêu.",
+        "Đo thời gian từ lúc mở app đến khi check-in thành công.",
+        "Theo dõi vị trí người dùng chạm nhầm hoặc dừng lại.",
+        "Mục tiêu đề xuất: hoàn thành check-in trong dưới 10 giây."
+      ],
+      "expected_impact": "Phát hiện vấn đề UX trước khi phát triển hoặc phát hành rộng rãi.",
+      "effort": "Medium",
+      "status": "Todo"
+    }
+  ],
+  "recommended_execution_order": [
+    "UX-001",
+    "UX-002",
+    "UX-003",
+    "UX-004",
+    "UX-005",
+    "UX-006",
+    "UI-001",
+    "UI-002",
+    "UI-003",
+    "UI-004",
+    "DS-001",
+    "UX-007",
+    "TEST-001"
+  ]
+}
