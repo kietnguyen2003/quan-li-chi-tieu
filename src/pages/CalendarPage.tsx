@@ -27,7 +27,7 @@ import { Calendar } from '../components/Calendar';
 import { Header } from '../components/Header';
 import { MonthlyIncomeBreakdown } from '../components/MonthlyIncomeBreakdown';
 import { MonthlySummary } from '../components/MonthlySummary';
-import { useAttendance } from '../context/AttendanceContext';
+import { useAttendance } from '../context/useAttendance';
 import {
   getMonthTotalSalary,
   groupCheckInsByDate,
@@ -500,7 +500,10 @@ export function CalendarPage() {
 
   const selectedDateKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : '';
   const selectedDayCheckIns = selectedDateKey ? dayCheckIns[selectedDateKey] ?? [] : [];
-  const classMap = new Map(classes.map((classItem) => [classItem.id, classItem]));
+  const classMap = useMemo(
+    () => new Map(classes.map((classItem) => [classItem.id, classItem])),
+    [classes],
+  );
 
   const handleBulkImport = () => {
     const { sessions, error } = parseBulkSchedule(bulkImportValue);

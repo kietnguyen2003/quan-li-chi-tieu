@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { addMonths, subMonths } from 'date-fns';
 import type { ClassCheckIn, SalaryPayment, TeachingClass } from '../types';
 import { loadStoredValue } from '../utils';
+import { AttendanceContext } from './attendanceContextShared';
 
 const STORAGE_KEY_REGULAR_CHECK_INS = 'class_checkin_records';
 const STORAGE_KEY_REGULAR_CLASSES = 'class_checkin_classes';
@@ -37,28 +38,6 @@ const normalizeLoadedCheckIns = (storedCheckIns: ClassCheckIn[]): ClassCheckIn[]
         : undefined,
   }));
 };
-
-interface AttendanceContextType {
-  currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  nextMonth: () => void;
-  prevMonth: () => void;
-  checkIns: ClassCheckIn[];
-  setCheckIns: React.Dispatch<React.SetStateAction<ClassCheckIn[]>>;
-  classes: TeachingClass[];
-  setClasses: React.Dispatch<React.SetStateAction<TeachingClass[]>>;
-  salaryPayments: SalaryPayment[];
-  setSalaryPayments: React.Dispatch<React.SetStateAction<SalaryPayment[]>>;
-  addCheckIn: (checkIn: Omit<ClassCheckIn, 'id'>) => void;
-  deleteCheckIn: (id: string) => void;
-  addClass: (newClass: Omit<TeachingClass, 'id'>) => TeachingClass;
-  updateClass: (updatedClass: TeachingClass) => void;
-  deleteClass: (id: string) => void;
-  addSalaryPayment: (payment: Omit<SalaryPayment, 'id'>) => void;
-  deleteSalaryPayment: (id: string) => void;
-}
-
-const AttendanceContext = createContext<AttendanceContextType | undefined>(undefined);
 
 export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -148,12 +127,4 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       {children}
     </AttendanceContext.Provider>
   );
-};
-
-export const useAttendance = (): AttendanceContextType => {
-  const context = useContext(AttendanceContext);
-  if (!context) {
-    throw new Error('useAttendance must be used within an AttendanceProvider');
-  }
-  return context;
 };

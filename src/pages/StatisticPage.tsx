@@ -24,7 +24,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAttendance } from '../context/AttendanceContext';
+import { useAttendance } from '../context/useAttendance';
 import { Header } from '../components/Header';
 import { resolveSessionAmount, resolveSessionHours } from '../transaction-helpers';
 import { formatCurrency } from '../utils';
