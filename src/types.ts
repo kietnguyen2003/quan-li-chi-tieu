@@ -21,3 +21,10 @@ export interface ClassCheckIn {
   sessionAmount?: number;
   timeRange?: string;
 }
+
+export interface SalaryPayment {
+  id: string;
+  date: string; // ISO string
+  amount: number;
+  note: string;
+}

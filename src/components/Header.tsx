@@ -1,21 +1,24 @@
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Navbar } from './Navbar';
 
 interface HeaderProps {
-  currentDate: Date;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
+  currentDate?: Date;
+  onPrevMonth?: () => void;
+  onNextMonth?: () => void;
   title?: string;
   subtitle?: string;
+  showMonthPicker?: boolean;
 }
 
 export function Header({
-  currentDate,
+  currentDate = new Date(),
   onPrevMonth,
   onNextMonth,
   title = 'Chấm công lớp học',
-  subtitle = 'Theo dõi lịch dạy',
+  subtitle = 'Theo dõi lịch dạy & thu nhập',
+  showMonthPicker = true,
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-natural-border/80 bg-[color:var(--color-natural-overlay)]/95 px-4 py-3 text-white shadow-[0_16px_34px_rgba(15,41,56,0.18)] backdrop-blur-xl sm:px-6 sm:py-4">
@@ -41,24 +44,30 @@ export function Header({
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-between gap-2 rounded-[1.5rem] border border-white/10 bg-white/8 px-2 py-2 backdrop-blur-sm sm:w-fit sm:justify-start sm:gap-4 sm:rounded-full">
-          <button
-            onClick={onPrevMonth}
-            className="rounded-full p-2 text-natural-accent hover:bg-white/10 hover:shadow-sm"
-            id="prev-month-btn"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="min-w-0 flex-1 text-center font-serif text-sm capitalize leading-none text-white sm:min-w-[138px] sm:flex-none sm:text-base">
-            {format(currentDate, 'MMMM, yyyy', { locale: vi })}
-          </span>
-          <button
-            onClick={onNextMonth}
-            className="rounded-full p-2 text-natural-accent hover:bg-white/10 hover:shadow-sm"
-            id="next-month-btn"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <Navbar />
+
+          {showMonthPicker && onPrevMonth && onNextMonth && (
+            <div className="flex w-full items-center justify-between gap-2 rounded-[1.5rem] border border-white/10 bg-white/8 px-2 py-2 backdrop-blur-sm sm:w-fit sm:justify-start sm:gap-4 sm:rounded-full">
+              <button
+                onClick={onPrevMonth}
+                className="rounded-full p-2 text-natural-accent hover:bg-white/10 hover:shadow-sm"
+                id="prev-month-btn"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-0 flex-1 text-center font-serif text-sm capitalize leading-none text-white sm:min-w-[138px] sm:flex-none sm:text-base">
+                {format(currentDate, 'MMMM, yyyy', { locale: vi })}
+              </span>
+              <button
+                onClick={onNextMonth}
+                className="rounded-full p-2 text-natural-accent hover:bg-white/10 hover:shadow-sm"
+                id="next-month-btn"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
