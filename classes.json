@@ -1,0 +1,145 @@
+[
+  {
+    "dashboard_data": {
+      "classes": [
+        {
+          "id": "ce6ffaad-de1d-4997-8d66-5615e17d452f",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "Hamza",
+          "salary_per_hour": 80000,
+          "default_duration_hours": 1.5,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        },
+        {
+          "id": "92c29096-2e78-4113-936b-61e18d4996b0",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "HQ Nam-Nam",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        },
+        {
+          "id": "6bbc5457-f3d0-4bde-bacd-95d1a8028ae1",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "HQ nam-nữ",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        },
+        {
+          "id": "b30e656c-a051-4dc3-a16e-5ec777f7607b",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "Hưng",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        },
+        {
+          "id": "b8a65f0d-2e14-4768-ab64-a7c9883eaa25",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "Keming",
+          "salary_per_hour": 160000,
+          "default_duration_hours": 1.5,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        },
+        {
+          "id": "2b9134ef-6d71-49c2-a58f-84a48d8abcc6",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "Lyra",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        },
+        {
+          "id": "c3277c01-a0d5-41a0-b24f-467d0a7fb4fc",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "name": "Tom",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1,
+          "note": "",
+          "created_at": "2026-08-06T07:36:55.515138+00:00",
+          "updated_at": "2026-08-06T07:36:55.515138+00:00"
+        }
+      ],
+      "teaching_sessions": [
+        {
+          "id": "70efd083-a029-4483-a67c-945f4b266678",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "class_id": "b8a65f0d-2e14-4768-ab64-a7c9883eaa25",
+          "session_date": "2026-08-04",
+          "start_time": "09:30:00",
+          "end_time": "11:00:00",
+          "session_hours": 1.5,
+          "session_amount": 240000,
+          "note": "",
+          "created_at": "2026-08-06T07:50:47.635629+00:00",
+          "updated_at": "2026-08-06T07:50:47.635629+00:00",
+          "class_name": "Keming",
+          "salary_per_hour": 160000,
+          "default_duration_hours": 1.5
+        },
+        {
+          "id": "2dc8a71e-309c-4919-acb0-31fc172cfbdf",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "class_id": "92c29096-2e78-4113-936b-61e18d4996b0",
+          "session_date": "2026-08-04",
+          "start_time": "11:00:00",
+          "end_time": "12:00:00",
+          "session_hours": 1,
+          "session_amount": 120000,
+          "note": "",
+          "created_at": "2026-08-06T07:50:47.635629+00:00",
+          "updated_at": "2026-08-06T07:50:47.635629+00:00",
+          "class_name": "HQ Nam-Nam",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1
+        },
+        {
+          "id": "43d4f452-7152-4e6f-be50-73f3cabc7a66",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "class_id": "2b9134ef-6d71-49c2-a58f-84a48d8abcc6",
+          "session_date": "2026-08-04",
+          "start_time": "13:00:00",
+          "end_time": "14:00:00",
+          "session_hours": 1,
+          "session_amount": 120000,
+          "note": "",
+          "created_at": "2026-08-06T07:50:47.635629+00:00",
+          "updated_at": "2026-08-06T07:50:47.635629+00:00",
+          "class_name": "Lyra",
+          "salary_per_hour": 120000,
+          "default_duration_hours": 1
+        },
+        {
+          "id": "107bba40-a7b8-49a9-aae8-de29e1b8677b",
+          "user_id": "1600d61b-1285-4973-a0e5-1e0578fe9c52",
+          "class_id": "b8a65f0d-2e14-4768-ab64-a7c9883eaa25",
+          "session_date": "2026-08-06",
+          "start_time": "09:30:00",
+          "end_time": "11:00:00",
+          "session_hours": 1.5,
+          "session_amount": 240000,
+          "note": "",
+          "created_at": "2026-08-06T07:50:47.635629+00:00",
+          "updated_at": "2026-08-06T07:50:47.635629+00:00",
+          "class_name": "Keming",
+          "salary_per_hour": 160000,
+          "default_duration_hours": 1.5
+        }
+      ],
+      "salary_payments": []
+    }
+  }
+]

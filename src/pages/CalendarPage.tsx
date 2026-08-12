@@ -88,6 +88,18 @@ const formatTimeLabel = (time24h: string) => {
   return minutes === 0 ? `${hours}h` : `${hours}h${padTimeUnit(minutes)}`;
 };
 
+const formatHoursLabel = (hoursValue: number) => {
+  const totalMinutes = Math.max(0, Math.round(hoursValue * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+
+  return `${hours}h${padTimeUnit(minutes)}`;
+};
+
 const parseTimeLabelToMinutes = (value: string) => {
   const normalizedValue = value
     .trim()
@@ -682,7 +694,14 @@ export function CalendarPage() {
 
     const classStatsMap = new Map<
       string,
-      { count: number; totalHours: number; totalAmount: number; name: string; salary: number }
+      {
+        count: number;
+        totalHours: number;
+        totalAmount: number;
+        name: string;
+        salary: number;
+        sessions: Array<{ dateLabel: string; timeRange: string; dateValue: string }>;
+      }
     >();
 
     currentMonthCheckIns.forEach((checkIn) => {
@@ -691,6 +710,11 @@ export function CalendarPage() {
       const salary = classItem?.salary ?? 0;
       const hours = checkIn.sessionHours ?? classItem?.durationHours ?? 0;
       const amount = resolveSessionAmount(checkIn, classItem);
+      const fallbackTimeRange =
+        checkIn.startTime && checkIn.endTime
+          ? `${formatTimeLabel(checkIn.startTime)} -> ${formatTimeLabel(checkIn.endTime)}`
+          : '';
+      const timeRange = normalizeTimeRange(checkIn.timeRange ?? fallbackTimeRange);
 
       const existing = classStatsMap.get(checkIn.classId) ?? {
         count: 0,
@@ -698,6 +722,7 @@ export function CalendarPage() {
         totalAmount: 0,
         name,
         salary,
+        sessions: [],
       };
 
       classStatsMap.set(checkIn.classId, {
@@ -706,6 +731,14 @@ export function CalendarPage() {
         totalAmount: existing.totalAmount + amount,
         name,
         salary,
+        sessions: [
+          ...existing.sessions,
+          {
+            dateLabel: format(parseISO(checkIn.date), 'd/M'),
+            timeRange,
+            dateValue: checkIn.date,
+          },
+        ],
       });
     });
 
@@ -715,26 +748,48 @@ export function CalendarPage() {
       paidSalary: monthPaidSalary,
       remainingSalary: monthTotalSalary - monthPaidSalary,
       checkInCount: monthCheckInCount,
-      classes: Array.from(classStatsMap.values()),
+      totalHours: currentMonthCheckIns.reduce((total, checkIn) => {
+        const classItem = classMap.get(checkIn.classId);
+        return total + (checkIn.sessionHours ?? classItem?.durationHours ?? 0);
+      }, 0),
+      classes: Array.from(classStatsMap.values())
+        .map((classSummary) => ({
+          ...classSummary,
+          sessions: [...classSummary.sessions].sort((firstSession, secondSession) =>
+            firstSession.dateValue.localeCompare(secondSession.dateValue),
+          ),
+        }))
+        .sort((firstClass, secondClass) => firstClass.name.localeCompare(secondClass.name, 'vi')),
     };
   }, [checkIns, classMap, currentDate, monthPaidSalary, monthTotalSalary, monthCheckInCount]);
 
   const exportAsText = () => {
-    const lines = [
-      `=== BÁO CÁO THU NHẬP - ${exportSummaryData.monthLabel.toUpperCase()} ===`,
-      `Tổng thu nhập dự kiến: ${formatCurrency(exportSummaryData.totalSalary)}`,
-      `Đã nhận: ${formatCurrency(exportSummaryData.paidSalary)}`,
-      `Còn lại: ${formatCurrency(exportSummaryData.remainingSalary)}`,
-      `Tổng số buổi dạy: ${exportSummaryData.checkInCount} buổi`,
-      '',
-      '--- CHI TIẾT THEO LỚP ---',
-    ];
+    const lines = [`=== BÁO CÁO THU NHẬP - ${exportSummaryData.monthLabel.toUpperCase()} ===`, ''];
 
-    exportSummaryData.classes.forEach((c) => {
-      lines.push(
-        `- ${c.name}: ${c.count} buổi (${c.totalHours}h) -> ${formatCurrency(c.totalAmount)}`,
-      );
+    exportSummaryData.classes.forEach((classSummary, classIndex) => {
+      lines.push(`${classSummary.name}:`);
+
+      classSummary.sessions.forEach((session) => {
+        lines.push(`${session.dateLabel}: ${session.timeRange}`);
+      });
+
+      lines.push(`Tổng giờ: ${formatHoursLabel(classSummary.totalHours)}`);
+      lines.push(`Tổng tiền: ${formatCurrency(classSummary.totalAmount)}`);
+
+      if (classIndex < exportSummaryData.classes.length - 1) {
+        lines.push('');
+      }
     });
+
+    if (exportSummaryData.classes.length > 0) {
+      lines.push('', 'TỔNG CỘNG:');
+    } else {
+      lines.push('TỔNG CỘNG:');
+    }
+
+    lines.push(`Tổng số buổi: ${exportSummaryData.checkInCount} buổi`);
+    lines.push(`Tổng giờ: ${formatHoursLabel(exportSummaryData.totalHours)}`);
+    lines.push(`Tổng tiền: ${formatCurrency(exportSummaryData.totalSalary)}`);
 
     return lines.join('\n');
   };
