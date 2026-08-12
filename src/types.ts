@@ -3,12 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export interface RecurringSchedule {
+  weekday: number;
+  startTime: string;
+  enabled: boolean;
+  skippedDates: string[];
+}
+
 export interface TeachingClass {
   id: string;
   name: string;
   salary: number;
   note: string;
   durationHours: number;
+  recurringSchedule?: RecurringSchedule;
 }
 
 export interface ClassCheckIn {

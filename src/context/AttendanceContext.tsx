@@ -14,6 +14,20 @@ const normalizeLoadedClasses = (storedClasses: TeachingClass[]): TeachingClass[]
       typeof classItem.durationHours === 'number' && Number.isFinite(classItem.durationHours)
         ? classItem.durationHours
         : 1;
+    const loadedSchedule = classItem.recurringSchedule;
+    const recurringSchedule =
+      loadedSchedule &&
+      typeof loadedSchedule.weekday === 'number' &&
+      typeof loadedSchedule.startTime === 'string'
+        ? {
+            weekday: Math.min(6, Math.max(0, loadedSchedule.weekday)),
+            startTime: loadedSchedule.startTime,
+            enabled: loadedSchedule.enabled !== false,
+            skippedDates: Array.isArray(loadedSchedule.skippedDates)
+              ? loadedSchedule.skippedDates.filter((date) => typeof date === 'string')
+              : [],
+          }
+        : undefined;
 
     return {
       id: classItem.id,
@@ -21,6 +35,7 @@ const normalizeLoadedClasses = (storedClasses: TeachingClass[]): TeachingClass[]
       salary: Number(classItem.salary) || 0,
       note: classItem.note ?? '',
       durationHours: inferredDuration,
+      recurringSchedule,
     };
   });
 };

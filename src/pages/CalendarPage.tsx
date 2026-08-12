@@ -4,6 +4,7 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  getDay,
   parseISO,
   startOfMonth,
   startOfWeek,
@@ -23,7 +24,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Calendar } from '../components/Calendar';
+import { Calendar, type PlannedCalendarSession } from '../components/Calendar';
 import { Header } from '../components/Header';
 import { MonthlyIncomeBreakdown } from '../components/MonthlyIncomeBreakdown';
 import { MonthlySummary } from '../components/MonthlySummary';
@@ -98,6 +99,20 @@ const formatHoursLabel = (hoursValue: number) => {
   }
 
   return `${hours}h${padTimeUnit(minutes)}`;
+};
+
+const WEEKDAY_OPTIONS = [
+  { value: 1, label: 'Thứ 2' },
+  { value: 2, label: 'Thứ 3' },
+  { value: 3, label: 'Thứ 4' },
+  { value: 4, label: 'Thứ 5' },
+  { value: 5, label: 'Thứ 6' },
+  { value: 6, label: 'Thứ 7' },
+  { value: 0, label: 'Chủ nhật' },
+];
+
+const getWeekdayLabel = (weekday: number) => {
+  return WEEKDAY_OPTIONS.find((option) => option.value === weekday)?.label ?? 'Không rõ';
 };
 
 const parseTimeLabelToMinutes = (value: string) => {
@@ -311,6 +326,9 @@ export function CalendarPage() {
   const [classSalary, setClassSalary] = useState('');
   const [classNote, setClassNote] = useState('');
   const [classDurationHours, setClassDurationHours] = useState('');
+  const [classHasRecurringSchedule, setClassHasRecurringSchedule] = useState(false);
+  const [classRecurringWeekday, setClassRecurringWeekday] = useState('1');
+  const [classRecurringStartTime, setClassRecurringStartTime] = useState('09:00');
   const [checkInStartTime, setCheckInStartTime] = useState(() => {
     return `${padTimeUnit(new Date().getHours())}:${padTimeUnit(new Date().getMinutes())}`;
   });
@@ -323,6 +341,9 @@ export function CalendarPage() {
   const [editingClassSalary, setEditingClassSalary] = useState('');
   const [editingClassDurationHours, setEditingClassDurationHours] = useState('');
   const [editingClassNote, setEditingClassNote] = useState('');
+  const [editingClassHasRecurringSchedule, setEditingClassHasRecurringSchedule] = useState(false);
+  const [editingClassRecurringWeekday, setEditingClassRecurringWeekday] = useState('1');
+  const [editingClassRecurringStartTime, setEditingClassRecurringStartTime] = useState('09:00');
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportCopied, setExportCopied] = useState(false);
   const [isSalaryPaymentModalOpen, setIsSalaryPaymentModalOpen] = useState(false);
@@ -436,6 +457,9 @@ export function CalendarPage() {
     setClassSalary('');
     setClassNote('');
     setClassDurationHours('');
+    setClassHasRecurringSchedule(false);
+    setClassRecurringWeekday('1');
+    setClassRecurringStartTime('09:00');
   };
 
   const closeCheckInModal = () => {
@@ -457,6 +481,9 @@ export function CalendarPage() {
     setEditingClassSalary('');
     setEditingClassDurationHours('');
     setEditingClassNote('');
+    setEditingClassHasRecurringSchedule(false);
+    setEditingClassRecurringWeekday('1');
+    setEditingClassRecurringStartTime('09:00');
   };
 
   const closeExportModal = () => {
@@ -482,6 +509,14 @@ export function CalendarPage() {
       salary: Number(classSalary),
       note: classNote.trim(),
       durationHours: Number(classDurationHours),
+      recurringSchedule: classHasRecurringSchedule
+        ? {
+            weekday: Number(classRecurringWeekday),
+            startTime: classRecurringStartTime,
+            enabled: true,
+            skippedDates: [],
+          }
+        : undefined,
     };
 
     setClasses((currentClasses) => [...currentClasses, newClass]);
@@ -516,6 +551,124 @@ export function CalendarPage() {
     () => new Map(classes.map((classItem) => [classItem.id, classItem])),
     [classes],
   );
+  const plannedSessionsByDate = useMemo(() => {
+    const plannedByDate: Record<string, PlannedCalendarSession[]> = {};
+
+    calendarDays.forEach((day) => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const currentDayCheckIns = dayCheckIns[dateKey] ?? [];
+
+      classes.forEach((classItem) => {
+        const schedule = classItem.recurringSchedule;
+        if (!schedule?.enabled) {
+          return;
+        }
+
+        if (schedule.weekday !== getDay(day)) {
+          return;
+        }
+
+        if (schedule.skippedDates.includes(dateKey)) {
+          return;
+        }
+
+        const alreadyCheckedIn = currentDayCheckIns.some((checkIn) => checkIn.classId === classItem.id);
+
+        if (alreadyCheckedIn) {
+          return;
+        }
+
+        const timePreview = buildTimeRangeFromStart(schedule.startTime, classItem.durationHours);
+        const timeRange = timePreview?.timeRange ?? schedule.startTime;
+
+        if (!plannedByDate[dateKey]) {
+          plannedByDate[dateKey] = [];
+        }
+
+        plannedByDate[dateKey].push({
+          classId: classItem.id,
+          className: classItem.name,
+          timeRange,
+        });
+      });
+
+      if (plannedByDate[dateKey]) {
+        plannedByDate[dateKey].sort((firstSession, secondSession) =>
+          firstSession.timeRange.localeCompare(secondSession.timeRange),
+        );
+      }
+    });
+
+    return plannedByDate;
+  }, [calendarDays, classes, dayCheckIns]);
+  const selectedDayPlannedSessions = selectedDateKey ? plannedSessionsByDate[selectedDateKey] ?? [] : [];
+
+  const handleConfirmRecurringSession = (classId: string) => {
+    if (!selectedDay) {
+      return;
+    }
+
+    const classItem = classMap.get(classId);
+    const schedule = classItem?.recurringSchedule;
+
+    if (!classItem || !schedule?.enabled) {
+      return;
+    }
+
+    const timePreview = buildTimeRangeFromStart(schedule.startTime, classItem.durationHours);
+
+    if (!timePreview) {
+      return;
+    }
+
+    const dateKey = format(selectedDay, 'yyyy-MM-dd');
+    const hasExistingCheckIn = (dayCheckIns[dateKey] ?? []).some((checkIn) => checkIn.classId === classId);
+
+    if (hasExistingCheckIn) {
+      return;
+    }
+
+    const newCheckIn: ClassCheckIn = {
+      id: crypto.randomUUID(),
+      classId,
+      date: selectedDay.toISOString(),
+      startTime: timePreview.startTime,
+      endTime: timePreview.endTime,
+      sessionHours: classItem.durationHours,
+      sessionAmount: classItem.salary * classItem.durationHours,
+      timeRange: timePreview.timeRange,
+    };
+
+    setCheckIns((currentCheckIns) => [...currentCheckIns, newCheckIn]);
+  };
+
+  const handleSkipRecurringSession = (classId: string) => {
+    if (!selectedDay) {
+      return;
+    }
+
+    const dateKey = format(selectedDay, 'yyyy-MM-dd');
+
+    setClasses((currentClasses) =>
+      currentClasses.map((classItem) => {
+        if (classItem.id !== classId || !classItem.recurringSchedule) {
+          return classItem;
+        }
+
+        if (classItem.recurringSchedule.skippedDates.includes(dateKey)) {
+          return classItem;
+        }
+
+        return {
+          ...classItem,
+          recurringSchedule: {
+            ...classItem.recurringSchedule,
+            skippedDates: [...classItem.recurringSchedule.skippedDates, dateKey],
+          },
+        };
+      }),
+    );
+  };
 
   const handleBulkImport = () => {
     const { sessions, error } = parseBulkSchedule(bulkImportValue);
@@ -629,6 +782,9 @@ export function CalendarPage() {
     setEditingClassSalary(String(targetClass.salary));
     setEditingClassDurationHours(String(targetClass.durationHours));
     setEditingClassNote(targetClass.note ?? '');
+    setEditingClassHasRecurringSchedule(Boolean(targetClass.recurringSchedule?.enabled));
+    setEditingClassRecurringWeekday(String(targetClass.recurringSchedule?.weekday ?? 1));
+    setEditingClassRecurringStartTime(targetClass.recurringSchedule?.startTime ?? '09:00');
     setIsEditClassModalOpen(true);
   };
 
@@ -646,6 +802,14 @@ export function CalendarPage() {
               salary: Number(editingClassSalary),
               durationHours: Number(editingClassDurationHours),
               note: editingClassNote.trim(),
+              recurringSchedule: editingClassHasRecurringSchedule
+                ? {
+                    weekday: Number(editingClassRecurringWeekday),
+                    startTime: editingClassRecurringStartTime,
+                    enabled: true,
+                    skippedDates: classItem.recurringSchedule?.skippedDates ?? [],
+                  }
+                : undefined,
             }
           : classItem,
       ),
@@ -850,11 +1014,12 @@ export function CalendarPage() {
           monthStart={monthStart}
           selectedDay={selectedDay}
           dayCheckIns={dayCheckIns}
+          plannedSessionsByDate={plannedSessionsByDate}
           classes={classes}
           onSelectDay={(day) => {
             setSelectedDay(day);
             const dateKey = format(day, 'yyyy-MM-dd');
-            if (dayCheckIns[dateKey]?.length) {
+            if ((dayCheckIns[dateKey]?.length ?? 0) > 0 || (plannedSessionsByDate[dateKey]?.length ?? 0) > 0) {
               setIsDayListOpen(true);
             } else {
               openCheckInModal(day);
@@ -1139,6 +1304,35 @@ export function CalendarPage() {
                         className="hallmark-input text-sm"
                       />
                     </div>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-natural-heading">
+                      <input
+                        type="checkbox"
+                        checked={classHasRecurringSchedule}
+                        onChange={(e) => setClassHasRecurringSchedule(e.target.checked)}
+                      />
+                      Đây là lớp cố định theo tuần
+                    </label>
+                    {classHasRecurringSchedule && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={classRecurringWeekday}
+                          onChange={(e) => setClassRecurringWeekday(e.target.value)}
+                          className="hallmark-input text-sm"
+                        >
+                          {WEEKDAY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="time"
+                          value={classRecurringStartTime}
+                          onChange={(e) => setClassRecurringStartTime(e.target.value)}
+                          className="hallmark-input text-sm"
+                        />
+                      </div>
+                    )}
                     <button
                       onClick={handleSaveClass}
                       className="hallmark-button-primary w-full text-xs"
@@ -1199,7 +1393,7 @@ export function CalendarPage() {
               <div className="flex items-center justify-between border-b border-natural-border-light pb-3">
                 <div>
                   <h3 className="type-title">Các buổi dạy ngày {format(selectedDay, 'dd/MM/yyyy')}</h3>
-                  <p className="type-caption">Danh sách các lớp đã check-in</p>
+                  <p className="type-caption">Gồm buổi cố định dự kiến và buổi đã check-in</p>
                 </div>
                 <button
                   onClick={() => setIsDayListOpen(false)}
@@ -1210,6 +1404,50 @@ export function CalendarPage() {
               </div>
 
               <div className="space-y-3 max-h-80 overflow-y-auto">
+                {selectedDayPlannedSessions.map((plannedSession) => {
+                  const classItem = classMap.get(plannedSession.classId);
+
+                  return (
+                    <div
+                      key={`planned-${plannedSession.classId}`}
+                      className="p-3 bg-amber-50 rounded-2xl border border-amber-200 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-natural-heading">{plannedSession.className}</p>
+                          <p className="text-xs text-natural-muted">
+                            Lớp cố định • {plannedSession.timeRange}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                          Dự kiến
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleConfirmRecurringSession(plannedSession.classId)}
+                          className="hallmark-button-primary flex-1 text-xs"
+                        >
+                          Đã dạy
+                        </button>
+                        <button
+                          onClick={() => handleSkipRecurringSession(plannedSession.classId)}
+                          className="hallmark-button-secondary flex-1 text-xs"
+                        >
+                          Nghỉ buổi này
+                        </button>
+                      </div>
+
+                      {classItem ? (
+                        <p className="text-[11px] text-natural-muted">
+                          {formatCurrency(classItem.salary)}/h • {classItem.durationHours}h/buổi
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+
                 {selectedDayCheckIns.map((checkIn) => {
                   const classItem = classMap.get(checkIn.classId);
                   const amount = resolveSessionAmount(checkIn, classItem);
@@ -1242,6 +1480,12 @@ export function CalendarPage() {
                     </div>
                   );
                 })}
+
+                {selectedDayPlannedSessions.length === 0 && selectedDayCheckIns.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-natural-border p-4 text-center text-sm text-natural-muted">
+                    Chưa có buổi dạy nào trong ngày này.
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex justify-between pt-3">
@@ -1340,6 +1584,12 @@ export function CalendarPage() {
                       <p className="text-xs text-natural-muted">
                         {formatCurrency(c.salary)}/h • {c.durationHours}h/buổi
                       </p>
+                      {c.recurringSchedule?.enabled ? (
+                        <p className="text-[11px] text-natural-accent">
+                          Cố định: {getWeekdayLabel(c.recurringSchedule.weekday)} •{' '}
+                          {formatTimeLabel(c.recurringSchedule.startTime)}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1435,6 +1685,43 @@ export function CalendarPage() {
                     className="hallmark-input text-sm mt-1"
                   />
                 </div>
+
+                <label className="flex items-center gap-2 text-xs font-semibold text-natural-heading">
+                  <input
+                    type="checkbox"
+                    checked={editingClassHasRecurringSchedule}
+                    onChange={(e) => setEditingClassHasRecurringSchedule(e.target.checked)}
+                  />
+                  Đây là lớp cố định theo tuần
+                </label>
+
+                {editingClassHasRecurringSchedule && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="type-caption uppercase font-bold">Ngày học cố định</label>
+                      <select
+                        value={editingClassRecurringWeekday}
+                        onChange={(e) => setEditingClassRecurringWeekday(e.target.value)}
+                        className="hallmark-input text-sm mt-1"
+                      >
+                        {WEEKDAY_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="type-caption uppercase font-bold">Giờ bắt đầu</label>
+                      <input
+                        type="time"
+                        value={editingClassRecurringStartTime}
+                        onChange={(e) => setEditingClassRecurringStartTime(e.target.value)}
+                        className="hallmark-input text-sm mt-1"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-2">

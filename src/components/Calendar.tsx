@@ -4,9 +4,16 @@ import type { ClassCheckIn, TeachingClass } from '../types.ts';
 import { formatCurrency } from '../utils.ts';
 import { resolveSessionAmount } from '../transaction-helpers.ts';
 
+export interface PlannedCalendarSession {
+  classId: string;
+  className: string;
+  timeRange: string;
+}
+
 interface CalendarProps {
   calendarDays: Date[];
   dayCheckIns: Record<string, ClassCheckIn[]>;
+  plannedSessionsByDate: Record<string, PlannedCalendarSession[]>;
   monthStart: Date;
   classes: TeachingClass[];
   selectedDay: Date | null;
@@ -16,6 +23,7 @@ interface CalendarProps {
 export function Calendar({
   calendarDays,
   dayCheckIns,
+  plannedSessionsByDate,
   monthStart,
   classes,
   selectedDay,
@@ -39,11 +47,17 @@ export function Calendar({
         {calendarDays.map((day) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const checkIns = dayCheckIns[dateKey] ?? [];
+          const plannedSessions = plannedSessionsByDate[dateKey] ?? [];
           const isCurrentMonth = isSameMonth(day, monthStart);
           const isToday = isSameDay(day, new Date());
           const isSelected = selectedDay ? isSameDay(day, selectedDay) : false;
           const previewCheckIns = checkIns.slice(0, 2);
-          const hiddenCount = Math.max(0, checkIns.length - previewCheckIns.length);
+          const remainingSlots = Math.max(0, 2 - previewCheckIns.length);
+          const previewPlannedSessions = plannedSessions.slice(0, remainingSlots);
+          const hiddenCount = Math.max(
+            0,
+            checkIns.length + plannedSessions.length - previewCheckIns.length - previewPlannedSessions.length,
+          );
           const totalAmount = checkIns.reduce((total, checkIn) => {
             const classItem = classMap.get(checkIn.classId);
             return total + resolveSessionAmount(checkIn, classItem);
@@ -89,9 +103,18 @@ export function Calendar({
                     </div>
                   );
                 })}
+                {previewPlannedSessions.map((session) => (
+                  <div
+                    key={`${session.classId}-${session.timeRange}`}
+                    className="truncate rounded-full border border-dashed border-natural-accent/45 bg-natural-accent/10 px-1.5 py-0.5 text-[6.5px] font-bold text-natural-heading/80 md:px-2 md:py-1 md:text-[8px]"
+                    title={`${session.className} (${session.timeRange})`}
+                  >
+                    {session.className}
+                  </div>
+                ))}
                 {hiddenCount > 0 ? (
                   <div className="truncate rounded-full border border-dashed border-natural-border bg-white/80 px-1.5 py-0.5 text-[6.5px] font-bold text-natural-text/65 md:px-2 md:py-1 md:text-[8px]">
-                    {checkIns.length} lớp
+                    {checkIns.length + plannedSessions.length} lớp
                   </div>
                 ) : null}
                 {checkIns.length > 0 && (
