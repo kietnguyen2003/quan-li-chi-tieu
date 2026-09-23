@@ -1,145 +1,177 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { addMonths, subMonths } from 'date-fns';
 import type { ClassCheckIn, SalaryPayment, TeachingClass } from '../types';
 import { loadStoredValue } from '../utils';
 import { AttendanceContext } from './attendanceContextShared';
+import * as repository from '../data/attendance-repository';
+import type { AttendanceData } from '../data/attendance-repository';
 
-const STORAGE_KEY_REGULAR_CHECK_INS = 'class_checkin_records';
-const STORAGE_KEY_REGULAR_CLASSES = 'class_checkin_classes';
-const STORAGE_KEY_SALARY_PAYMENTS = 'class_checkin_salary_payments';
+const emptyData = (): AttendanceData => ({ classes: [], checkIns: [], salaryPayments: [] });
 
-const normalizeLoadedClasses = (storedClasses: TeachingClass[]): TeachingClass[] => {
-  return storedClasses.map((classItem) => {
-    const inferredDuration =
-      typeof classItem.durationHours === 'number' && Number.isFinite(classItem.durationHours)
-        ? classItem.durationHours
-        : 1;
-    const loadedSchedule = classItem.recurringSchedule;
-    const recurringSchedule =
-      loadedSchedule &&
-      typeof loadedSchedule.weekday === 'number' &&
-      typeof loadedSchedule.startTime === 'string'
-        ? {
-            weekday: Math.min(6, Math.max(0, loadedSchedule.weekday)),
-            startTime: loadedSchedule.startTime,
-            enabled: loadedSchedule.enabled !== false,
-            skippedDates: Array.isArray(loadedSchedule.skippedDates)
-              ? loadedSchedule.skippedDates.filter((date) => typeof date === 'string')
-              : [],
-          }
-        : undefined;
+function loadGuestData(): AttendanceData {
+  const classes = loadStoredValue<TeachingClass[]>('class_checkin_classes', []);
+  return {
+    classes: classes.map((item) => ({ ...item, note: item.note ?? '', durationHours: item.durationHours ?? 1 })),
+    checkIns: loadStoredValue<ClassCheckIn[]>('class_checkin_records', []),
+    salaryPayments: loadStoredValue<SalaryPayment[]>('class_checkin_salary_payments', []),
+  };
+}
 
-    return {
-      id: classItem.id,
-      name: classItem.name,
-      salary: Number(classItem.salary) || 0,
-      note: classItem.note ?? '',
-      durationHours: inferredDuration,
-      recurringSchedule,
-    };
-  });
-};
+function persistGuestData(data: AttendanceData) {
+  localStorage.setItem('class_checkin_classes', JSON.stringify(data.classes));
+  localStorage.setItem('class_checkin_records', JSON.stringify(data.checkIns));
+  localStorage.setItem('class_checkin_salary_payments', JSON.stringify(data.salaryPayments));
+}
 
-const normalizeLoadedCheckIns = (storedCheckIns: ClassCheckIn[]): ClassCheckIn[] => {
-  return storedCheckIns.map((checkIn) => ({
-    ...checkIn,
-    sessionHours:
-      typeof checkIn.sessionHours === 'number' && Number.isFinite(checkIn.sessionHours)
-        ? checkIn.sessionHours
-        : undefined,
-    sessionAmount:
-      typeof checkIn.sessionAmount === 'number' && Number.isFinite(checkIn.sessionAmount)
-        ? checkIn.sessionAmount
-        : undefined,
-  }));
-};
-
-export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Keyed by user ID in App: account changes discard data and pending UI state.
+// Signed-in data never initializes from or writes to localStorage snapshots.
+export function AttendanceProvider({ children, storageScope }: { children: ReactNode; storageScope?: string }) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [data, setData] = useState<AttendanceData>(() => storageScope ? emptyData() : loadGuestData());
+  const currentData = useRef(data);
+  const [loading, setLoading] = useState(Boolean(storageScope));
+  const [hasLoaded, setHasLoaded] = useState(!storageScope);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const mounted = useRef(false);
+  const version = useRef(0);
+  const mutationPending = useRef(false);
+  const ready = useRef(!storageScope);
+  const pendingClass = useRef<{ fingerprint: string; item: TeachingClass } | null>(null);
+  const pendingPayment = useRef<{ fingerprint: string; item: SalaryPayment } | null>(null);
 
-  const [checkIns, setCheckIns] = useState<ClassCheckIn[]>(() =>
-    normalizeLoadedCheckIns(loadStoredValue<ClassCheckIn[]>(STORAGE_KEY_REGULAR_CHECK_INS, [])),
-  );
+  const fetchCloud = useCallback(async () => {
+    if (!storageScope) return false;
+    const ticket = ++version.current;
+    let loaded: AttendanceData;
+    try { loaded = await repository.loadAttendance(storageScope); }
+    catch (error) {
+      if (!mounted.current || ticket !== version.current) return false;
+      throw error;
+    }
+    if (!mounted.current || ticket !== version.current) return false;
+    currentData.current = loaded;
+    setData(loaded);
+    setHasLoaded(true);
+    setLoadError(null);
+    ready.current = true;
+    return true;
+  }, [storageScope]);
 
-  const [classes, setClasses] = useState<TeachingClass[]>(() =>
-    normalizeLoadedClasses(loadStoredValue<TeachingClass[]>(STORAGE_KEY_REGULAR_CLASSES, [])),
-  );
-
-  const [salaryPayments, setSalaryPayments] = useState<SalaryPayment[]>(() =>
-    loadStoredValue<SalaryPayment[]>(STORAGE_KEY_SALARY_PAYMENTS, []),
-  );
+  const reload = useCallback(async () => {
+    if (!storageScope || mutationPending.current) return;
+    ready.current = false;
+    setLoading(true);
+    setLoadError(null);
+    try { if (!await fetchCloud()) return; }
+    catch (error) {
+      if (mounted.current) setLoadError(repository.getDataErrorMessage(error));
+    }
+    if (mounted.current) setLoading(false);
+  }, [storageScope, fetchCloud]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_REGULAR_CHECK_INS, JSON.stringify(checkIns));
-  }, [checkIns]);
+    mounted.current = true;
+    void Promise.resolve().then(() => { if (mounted.current) return reload(); });
+    return () => { mounted.current = false; version.current += 1; };
+  }, [reload]);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_REGULAR_CLASSES, JSON.stringify(classes));
-  }, [classes]);
+  async function mutate<T>(remote: () => Promise<T>, local: (previous: AttendanceData) => { data: AttendanceData; result: T }): Promise<T> {
+    if (mutationPending.current || !ready.current) throw new Error('Dữ liệu chưa sẵn sàng.');
+    mutationPending.current = true;
+    setSaving(true);
+    setDataError(null);
+    try {
+      if (storageScope) {
+        const result = await remote();
+        try { await fetchCloud(); }
+        catch {
+          ready.current = false;
+          if (mounted.current) setLoadError('Đã lưu thay đổi, nhưng chưa tải lại được dữ liệu. Hãy tải lại trước khi tiếp tục.');
+        }
+        return result;
+      }
+      const next = local(currentData.current);
+      persistGuestData(next.data);
+      currentData.current = next.data;
+      setData(next.data);
+      return next.result;
+    } catch (error) {
+      if (mounted.current) setDataError(repository.getDataErrorMessage(error));
+      // Multi-table writes may partially succeed: re-read actual server data.
+      if (storageScope && mounted.current) {
+        try { await fetchCloud(); }
+        catch {
+          ready.current = false;
+          if (mounted.current) setLoadError('Chưa thể xác nhận dữ liệu trên máy chủ. Hãy tải lại trước khi tiếp tục.');
+        }
+      }
+      throw error;
+    } finally {
+      mutationPending.current = false;
+      if (mounted.current) setSaving(false);
+    }
+  }
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_SALARY_PAYMENTS, JSON.stringify(salaryPayments));
-  }, [salaryPayments]);
-
-  const nextMonth = () => setCurrentDate((prev) => addMonths(prev, 1));
-  const prevMonth = () => setCurrentDate((prev) => subMonths(prev, 1));
-
-  const addCheckIn = (checkIn: Omit<ClassCheckIn, 'id'>) => {
-    const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
-    setCheckIns((prev) => [...prev, { ...checkIn, id }]);
+  const addClass = async (input: Omit<TeachingClass, 'id'>) => {
+    // Reuse the ID when retrying a partially completed class/schedule save.
+    const fingerprint = JSON.stringify(input);
+    const item = pendingClass.current?.fingerprint === fingerprint
+      ? pendingClass.current.item : { ...input, id: crypto.randomUUID() };
+    pendingClass.current = { fingerprint, item };
+    const result = await mutate(async () => { await repository.saveClass(storageScope!, item); return item; },
+      (previous) => ({ data: { ...previous, classes: [...previous.classes, item] }, result: item }));
+    pendingClass.current = null;
+    return result;
   };
-
-  const deleteCheckIn = (id: string) => {
-    setCheckIns((prev) => prev.filter((item) => item.id !== id));
+  const updateClass = (item: TeachingClass) => mutate(() => repository.saveClass(storageScope!, item),
+    (previous) => ({ data: { ...previous, classes: previous.classes.map((entry) => entry.id === item.id ? item : entry) }, result: undefined }));
+  const deleteClass = (id: string) => mutate(() => repository.deleteClass(storageScope!, id), (previous) => {
+    if (previous.checkIns.some((entry) => entry.classId === id)) throw new Error('Lớp vẫn còn lịch sử chấm công.');
+    return { data: { ...previous, classes: previous.classes.filter((entry) => entry.id !== id) }, result: undefined };
+  });
+  const addCheckIn = (input: Omit<ClassCheckIn, 'id'>) => {
+    const item = { ...input, id: crypto.randomUUID() };
+    return mutate(() => {
+      const target = currentData.current.classes.find((entry) => entry.id === item.classId);
+      if (!target) throw new Error('Không tìm thấy lớp học.');
+      return repository.addCheckIn(storageScope!, item, target);
+    }, (previous) => ({ data: { ...previous, checkIns: [...previous.checkIns, item] }, result: undefined }));
   };
-
-  const addClass = (newClassData: Omit<TeachingClass, 'id'>): TeachingClass => {
-    const id = Date.now().toString();
-    const createdClass: TeachingClass = { ...newClassData, id };
-    setClasses((prev) => [...prev, createdClass]);
-    return createdClass;
+  const deleteCheckIn = (id: string) => mutate(() => repository.deleteCheckIn(storageScope!, id),
+    (previous) => ({ data: { ...previous, checkIns: previous.checkIns.filter((entry) => entry.id !== id) }, result: undefined }));
+  const addSalaryPayment = async (input: Omit<SalaryPayment, 'id'>) => {
+    const fingerprint = JSON.stringify(input);
+    const item = pendingPayment.current?.fingerprint === fingerprint
+      ? pendingPayment.current.item : { ...input, id: crypto.randomUUID() };
+    pendingPayment.current = { fingerprint, item };
+    await mutate(() => repository.saveSalaryPayment(storageScope!, item),
+      (previous) => ({ data: { ...previous, salaryPayments: [...previous.salaryPayments, item] }, result: undefined }));
+    pendingPayment.current = null;
   };
+  const deleteSalaryPayment = (id: string) => mutate(() => repository.deleteSalaryPayment(storageScope!, id),
+    (previous) => ({ data: { ...previous, salaryPayments: previous.salaryPayments.filter((entry) => entry.id !== id) }, result: undefined }));
+  const importSchedule = (classes: TeachingClass[], checkIns: ClassCheckIn[]) => mutate(async () => {
+    const byId = new Map([...currentData.current.classes, ...classes].map((item) => [item.id, item]));
+    for (const item of classes) await repository.saveClass(storageScope!, item);
+    for (const item of checkIns) {
+      const target = byId.get(item.classId);
+      if (!target) throw new Error('Không tìm thấy lớp học.');
+      await repository.addCheckIn(storageScope!, item, target);
+    }
+  }, (previous) => ({ data: {
+    ...previous,
+    classes: [...new Map([...previous.classes, ...classes].map((item) => [item.id, item])).values()],
+    checkIns: [...previous.checkIns, ...checkIns],
+  }, result: undefined }));
 
-  const updateClass = (updatedClass: TeachingClass) => {
-    setClasses((prev) => prev.map((c) => (c.id === updatedClass.id ? updatedClass : c)));
-  };
-
-  const deleteClass = (id: string) => {
-    setClasses((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const addSalaryPayment = (payment: Omit<SalaryPayment, 'id'>) => {
-    const id = Date.now().toString();
-    setSalaryPayments((prev) => [...prev, { ...payment, id }]);
-  };
-
-  const deleteSalaryPayment = (id: string) => {
-    setSalaryPayments((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  return (
-    <AttendanceContext.Provider
-      value={{
-        currentDate,
-        setCurrentDate,
-        nextMonth,
-        prevMonth,
-        checkIns,
-        setCheckIns,
-        classes,
-        setClasses,
-        salaryPayments,
-        setSalaryPayments,
-        addCheckIn,
-        deleteCheckIn,
-        addClass,
-        updateClass,
-        deleteClass,
-        addSalaryPayment,
-        deleteSalaryPayment,
-      }}
-    >
-      {children}
-    </AttendanceContext.Provider>
-  );
-};
+  return <AttendanceContext.Provider value={{
+    currentDate, setCurrentDate,
+    nextMonth: () => setCurrentDate((date) => addMonths(date, 1)),
+    prevMonth: () => setCurrentDate((date) => subMonths(date, 1)),
+    ...data, loading, hasLoaded, saving, loadError, dataError, isCloud: Boolean(storageScope), reload,
+    clearDataError: () => setDataError(null),
+    addClass, updateClass, deleteClass, addCheckIn, deleteCheckIn, addSalaryPayment, deleteSalaryPayment, importSchedule,
+  }}>{children}</AttendanceContext.Provider>;
+}

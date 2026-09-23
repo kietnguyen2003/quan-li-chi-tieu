@@ -8,18 +8,24 @@ export interface AttendanceContextType {
   nextMonth: () => void;
   prevMonth: () => void;
   checkIns: ClassCheckIn[];
-  setCheckIns: React.Dispatch<React.SetStateAction<ClassCheckIn[]>>;
   classes: TeachingClass[];
-  setClasses: React.Dispatch<React.SetStateAction<TeachingClass[]>>;
   salaryPayments: SalaryPayment[];
-  setSalaryPayments: React.Dispatch<React.SetStateAction<SalaryPayment[]>>;
-  addCheckIn: (checkIn: Omit<ClassCheckIn, 'id'>) => void;
-  deleteCheckIn: (id: string) => void;
-  addClass: (newClass: Omit<TeachingClass, 'id'>) => TeachingClass;
-  updateClass: (updatedClass: TeachingClass) => void;
-  deleteClass: (id: string) => void;
-  addSalaryPayment: (payment: Omit<SalaryPayment, 'id'>) => void;
-  deleteSalaryPayment: (id: string) => void;
+  loading: boolean;
+  hasLoaded: boolean;
+  saving: boolean;
+  loadError: string | null;
+  dataError: string | null;
+  isCloud: boolean;
+  reload: () => Promise<void>;
+  clearDataError: () => void;
+  addCheckIn: (checkIn: Omit<ClassCheckIn, 'id'>) => Promise<void>;
+  deleteCheckIn: (id: string) => Promise<void>;
+  addClass: (newClass: Omit<TeachingClass, 'id'>) => Promise<TeachingClass>;
+  updateClass: (updatedClass: TeachingClass) => Promise<void>;
+  deleteClass: (id: string) => Promise<void>;
+  addSalaryPayment: (payment: Omit<SalaryPayment, 'id'>) => Promise<void>;
+  deleteSalaryPayment: (id: string) => Promise<void>;
+  importSchedule: (classes: TeachingClass[], checkIns: ClassCheckIn[]) => Promise<void>;
 }
 
 export const AttendanceContext = createContext<AttendanceContextType | undefined>(undefined);

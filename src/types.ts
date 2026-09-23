@@ -17,6 +17,7 @@ export interface TeachingClass {
   note: string;
   durationHours: number;
   recurringSchedule?: RecurringSchedule;
+  archivedAt?: string;
 }
 
 export interface ClassCheckIn {

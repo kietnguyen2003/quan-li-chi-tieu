@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Navbar } from './Navbar';
+import { AccountMenu } from './AccountMenu';
 
 interface HeaderProps {
   currentDate?: Date;
@@ -17,42 +18,22 @@ export function Header({
   onPrevMonth,
   onNextMonth,
   title = 'Chấm công lớp học',
-  subtitle = 'Theo dõi lịch dạy & thu nhập',
   showMonthPicker = true,
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-natural-border/80 bg-[color:var(--color-natural-overlay)]/95 px-4 py-2 text-white shadow-[0_16px_34px_rgba(15,41,56,0.18)] backdrop-blur-xl sm:px-6 sm:py-3">
-      <div className="mx-auto flex max-w-5xl flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 overflow-hidden rounded-xl border border-white/15 bg-white/8 p-0.5 shadow-lg shadow-black/10 backdrop-blur-sm sm:h-10 sm:w-10">
-            <img
-              src="/image.png"
-              alt="Logo trung tâm"
-              className="h-full w-full rounded-[0.5rem] object-cover"
-            />
-          </div>
-          <div className="flex flex-col justify-center">
-            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-white/55 sm:text-[9px]">
-              Bảng điều khiển
-            </p>
-            <h1 className="text-base font-bold text-white md:text-lg">
-              {title}
-            </h1>
-            <p className="max-w-md text-xs text-white/72">
-              {subtitle}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-          <Navbar />
-
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[color:var(--color-natural-overlay)]/95 px-3 py-2 text-white backdrop-blur-xl sm:px-6">
+      <div className="mx-auto grid max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1.5 md:grid-cols-[auto_1fr_auto_auto]">
+        <img src="/image.png" alt="Training Camp" className="h-8 w-8 rounded-lg border border-white/15 object-cover" />
+        <h1 className="sr-only">{title}</h1>
+        <div className="justify-self-center md:justify-self-start"><Navbar /></div>
+        <div className="md:col-start-4 md:row-start-1"><AccountMenu /></div>
           {showMonthPicker && onPrevMonth && onNextMonth && (
-            <div className="flex w-full items-center justify-between gap-2 rounded-full border border-white/10 bg-white/8 px-2 py-1 backdrop-blur-sm sm:w-fit sm:justify-start sm:gap-3">
+            <div className="col-span-3 flex items-center justify-between gap-2 rounded-full bg-white/5 px-1 md:col-span-1 md:col-start-3 md:row-start-1 md:min-w-48">
               <button
                 onClick={onPrevMonth}
-                className="rounded-full p-1.5 text-natural-accent hover:bg-white/10 hover:shadow-sm"
+                className="grid h-9 w-9 place-items-center rounded-full text-natural-accent hover:bg-white/10"
                 id="prev-month-btn"
+                aria-label="Tháng trước"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -61,14 +42,14 @@ export function Header({
               </span>
               <button
                 onClick={onNextMonth}
-                className="rounded-full p-1.5 text-natural-accent hover:bg-white/10 hover:shadow-sm"
+                className="grid h-9 w-9 place-items-center rounded-full text-natural-accent hover:bg-white/10"
                 id="next-month-btn"
+                aria-label="Tháng sau"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           )}
-        </div>
       </div>
     </header>
   );

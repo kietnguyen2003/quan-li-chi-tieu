@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Calendar, type PlannedCalendarSession } from '../components/Calendar';
+import { ClassFilter } from '../components/ClassFilter';
 import { Header } from '../components/Header';
 import { MonthlyIncomeBreakdown } from '../components/MonthlyIncomeBreakdown';
 import { MonthlySummary } from '../components/MonthlySummary';
@@ -305,12 +306,19 @@ export function CalendarPage() {
     nextMonth,
     prevMonth,
     checkIns,
-    setCheckIns,
+    addCheckIn,
+    deleteCheckIn,
     classes,
-    setClasses,
+    addClass,
+    updateClass,
+    deleteClass,
+    importSchedule,
+    saving,
     salaryPayments,
     addSalaryPayment,
   } = useAttendance();
+
+  const [formError, setFormError] = useState('');
 
   // Modals & Popups State
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -344,6 +352,9 @@ export function CalendarPage() {
   const [editingClassHasRecurringSchedule, setEditingClassHasRecurringSchedule] = useState(false);
   const [editingClassRecurringWeekday, setEditingClassRecurringWeekday] = useState('1');
   const [editingClassRecurringStartTime, setEditingClassRecurringStartTime] = useState('09:00');
+  const [calendarClassId, setCalendarClassId] = useState('');
+  const visibleCheckIns = useMemo(() => checkIns.filter((item) => !calendarClassId || item.classId === calendarClassId), [checkIns, calendarClassId]);
+  const visibleClasses = useMemo(() => classes.filter((item) => !calendarClassId || item.id === calendarClassId), [classes, calendarClassId]);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportCopied, setExportCopied] = useState(false);
   const [isSalaryPaymentModalOpen, setIsSalaryPaymentModalOpen] = useState(false);
@@ -361,7 +372,7 @@ export function CalendarPage() {
     end: endDate,
   });
 
-  const dayCheckIns = useMemo(() => groupCheckInsByDate(checkIns), [checkIns]);
+  const dayCheckIns = useMemo(() => groupCheckInsByDate(visibleCheckIns), [visibleCheckIns]);
 
   const monthTotalSalary = useMemo(
     () => getMonthTotalSalary(checkIns, classes, currentDate),
@@ -443,6 +454,7 @@ export function CalendarPage() {
     : null;
 
   const openCheckInModal = (day: Date) => {
+    setFormError('');
     setIsDayListOpen(false);
     setSelectedDay(day);
     setSelectedClassId('');
@@ -498,51 +510,62 @@ export function CalendarPage() {
     setSalaryPaymentNote('');
   };
 
-  const handleSaveClass = () => {
-    if (!className || !classSalary || !classDurationHours) {
-      return;
-    }
-
-    const newClass: TeachingClass = {
-      id: crypto.randomUUID(),
-      name: className,
-      salary: Number(classSalary),
-      note: classNote.trim(),
-      durationHours: Number(classDurationHours),
-      recurringSchedule: classHasRecurringSchedule
-        ? {
-            weekday: Number(classRecurringWeekday),
-            startTime: classRecurringStartTime,
-            enabled: true,
-            skippedDates: [],
-          }
-        : undefined,
-    };
-
-    setClasses((currentClasses) => [...currentClasses, newClass]);
-    setSelectedClassId(newClass.id);
-    resetClassForm();
+  const validateClass = (name: string, salary: string, hours: string, recurring: boolean, weekday: string, time: string) => {
+    if (!name.trim() || name.trim().length > 200) return 'Tên lớp phải có từ 1 đến 200 ký tự.';
+    if (!salary.trim() || !Number.isFinite(Number(salary)) || Number(salary) < 0) return 'Đơn giá phải là số không âm.';
+    if (!hours.trim() || !Number.isFinite(Number(hours)) || Number(hours) <= 0 || Number(hours) > 24) return 'Thời lượng phải lớn hơn 0 và không quá 24 giờ.';
+    if (recurring && (!Number.isInteger(Number(weekday)) || Number(weekday) < 0 || Number(weekday) > 6 || parseTimeLabelToMinutes(time) === null)) return 'Vui lòng chọn thứ và giờ bắt đầu hợp lệ.';
+    return '';
   };
 
-  const handleConfirmCheckIn = () => {
+  const handleSaveClass = async () => {
+    if (saving) return;
+    const error = validateClass(className, classSalary, classDurationHours, classHasRecurringSchedule, classRecurringWeekday, classRecurringStartTime);
+    setFormError(error);
+    if (error) return;
+    try {
+      const newClass = await addClass({
+        name: className.trim(),
+        salary: Number(classSalary),
+        note: classNote.trim(),
+        durationHours: Number(classDurationHours),
+        recurringSchedule: classHasRecurringSchedule ? {
+          weekday: Number(classRecurringWeekday), startTime: classRecurringStartTime,
+          enabled: true, skippedDates: [],
+        } : undefined,
+      });
+      setSelectedClassId(newClass.id);
+      resetClassForm();
+    } catch {
+      // The shared data status displays persistence errors; keep the form open.
+    }
+  };
+
+  const handleConfirmCheckIn = async () => {
+    if (saving) return;
+    setFormError('');
     if (!selectedDay || !selectedClassId || !selectedClass || !selectedTimePreview) {
+      setFormError('Vui lòng chọn lớp, ngày dạy và giờ bắt đầu hợp lệ.');
       return;
     }
-
-    const newCheckIn: ClassCheckIn = {
-      id: crypto.randomUUID(),
-      classId: selectedClassId,
-      date: selectedDay.toISOString(),
-      startTime: selectedTimePreview.startTime,
-      endTime: selectedTimePreview.endTime,
-      sessionHours: selectedClass.durationHours,
-      sessionAmount: selectedClass.salary * selectedClass.durationHours,
-      timeRange: selectedTimePreview.timeRange,
-    };
-
-    setCheckIns((currentCheckIns) => [...currentCheckIns, newCheckIn]);
-    closeCheckInModal();
-    setIsDayListOpen(false);
+    const date = format(selectedDay, 'yyyy-MM-dd');
+    if (checkIns.some((item) => item.classId === selectedClassId && format(parseISO(item.date), 'yyyy-MM-dd') === date && item.startTime === selectedTimePreview.startTime)) {
+      setFormError('Buổi dạy này đã được chấm công.');
+      return;
+    }
+    try {
+      await addCheckIn({
+        classId: selectedClassId, date,
+        startTime: selectedTimePreview.startTime, endTime: selectedTimePreview.endTime,
+        sessionHours: selectedClass.durationHours,
+        sessionAmount: selectedClass.salary * selectedClass.durationHours,
+        timeRange: selectedTimePreview.timeRange,
+      });
+      closeCheckInModal();
+      setIsDayListOpen(false);
+    } catch {
+      // The shared data status displays persistence errors; keep the form open.
+    }
   };
 
   const selectedDateKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : '';
@@ -558,7 +581,7 @@ export function CalendarPage() {
       const dateKey = format(day, 'yyyy-MM-dd');
       const currentDayCheckIns = dayCheckIns[dateKey] ?? [];
 
-      classes.forEach((classItem) => {
+      visibleClasses.forEach((classItem) => {
         const schedule = classItem.recurringSchedule;
         if (!schedule?.enabled) {
           return;
@@ -600,10 +623,11 @@ export function CalendarPage() {
     });
 
     return plannedByDate;
-  }, [calendarDays, classes, dayCheckIns]);
+  }, [calendarDays, visibleClasses, dayCheckIns]);
   const selectedDayPlannedSessions = selectedDateKey ? plannedSessionsByDate[selectedDateKey] ?? [] : [];
 
-  const handleConfirmRecurringSession = (classId: string) => {
+  const handleConfirmRecurringSession = async (classId: string) => {
+    if (saving) return;
     if (!selectedDay) {
       return;
     }
@@ -628,10 +652,9 @@ export function CalendarPage() {
       return;
     }
 
-    const newCheckIn: ClassCheckIn = {
-      id: crypto.randomUUID(),
+    const newCheckIn: Omit<ClassCheckIn, 'id'> = {
       classId,
-      date: selectedDay.toISOString(),
+      date: format(selectedDay, 'yyyy-MM-dd'),
       startTime: timePreview.startTime,
       endTime: timePreview.endTime,
       sessionHours: classItem.durationHours,
@@ -639,38 +662,33 @@ export function CalendarPage() {
       timeRange: timePreview.timeRange,
     };
 
-    setCheckIns((currentCheckIns) => [...currentCheckIns, newCheckIn]);
-  };
-
-  const handleSkipRecurringSession = (classId: string) => {
-    if (!selectedDay) {
-      return;
+    try {
+      await addCheckIn(newCheckIn);
+    } catch {
+      // The shared data status displays persistence errors.
     }
-
-    const dateKey = format(selectedDay, 'yyyy-MM-dd');
-
-    setClasses((currentClasses) =>
-      currentClasses.map((classItem) => {
-        if (classItem.id !== classId || !classItem.recurringSchedule) {
-          return classItem;
-        }
-
-        if (classItem.recurringSchedule.skippedDates.includes(dateKey)) {
-          return classItem;
-        }
-
-        return {
-          ...classItem,
-          recurringSchedule: {
-            ...classItem.recurringSchedule,
-            skippedDates: [...classItem.recurringSchedule.skippedDates, dateKey],
-          },
-        };
-      }),
-    );
   };
 
-  const handleBulkImport = () => {
+  const handleSkipRecurringSession = async (classId: string) => {
+    if (saving || !selectedDay) return;
+    const dateKey = format(selectedDay, 'yyyy-MM-dd');
+    const classItem = classes.find((item) => item.id === classId);
+    if (!classItem?.recurringSchedule || classItem.recurringSchedule.skippedDates.includes(dateKey)) return;
+    try {
+      await updateClass({
+        ...classItem,
+        recurringSchedule: {
+          ...classItem.recurringSchedule,
+          skippedDates: [...classItem.recurringSchedule.skippedDates, dateKey],
+        },
+      });
+    } catch {
+      // The shared data status displays persistence errors.
+    }
+  };
+
+  const handleBulkImport = async () => {
+    if (saving) return;
     const { sessions, error } = parseBulkSchedule(bulkImportValue);
 
     if (error) {
@@ -706,13 +724,18 @@ export function CalendarPage() {
       }
     }
 
-    for (const classItem of nextClasses) {
-      const classKey = normalizeClassKey(classItem.name);
-      const importedSalary = classSalaryByKey.get(classKey);
-
-      if (importedSalary !== undefined) {
-        classItem.salary = importedSalary;
-      }
+    const updatedClasses = nextClasses.map((classItem) => {
+      const importedSalary = classSalaryByKey.get(normalizeClassKey(classItem.name));
+      return importedSalary === undefined ? classItem : { ...classItem, salary: importedSalary };
+    });
+    const changedClasses = updatedClasses.filter((classItem) => {
+      const original = classes.find((item) => item.id === classItem.id);
+      return !original || original.salary !== classItem.salary;
+    });
+    const invalidClass = changedClasses.find((item) => validateClass(item.name, String(item.salary), String(item.durationHours), false, '1', '09:00'));
+    if (invalidClass) {
+      setBulkImportError('Tên lớp, đơn giá hoặc thời lượng trong lịch nhập không hợp lệ.');
+      return;
     }
 
     const existingCheckInKeys = new Set(
@@ -720,7 +743,6 @@ export function CalendarPage() {
         return [
           checkIn.classId,
           format(parseISO(checkIn.date), 'yyyy-MM-dd'),
-          normalizeTimeRange(checkIn.timeRange ?? ''),
           checkIn.startTime ?? '',
         ].join('|');
       }),
@@ -738,7 +760,6 @@ export function CalendarPage() {
       const checkInKey = [
         classId,
         format(parseISO(session.date), 'yyyy-MM-dd'),
-        normalizeTimeRange(session.timeRange),
         session.startTime,
       ].join('|');
 
@@ -754,20 +775,27 @@ export function CalendarPage() {
         startTime: session.startTime,
         endTime: session.endTime,
         sessionHours: session.sessionHours,
+        sessionAmount: (session.classSalary ?? updatedClasses.find((item) => item.id === classId)?.salary ?? 0) * session.sessionHours,
         timeRange: session.timeRange,
       });
     }
 
-    setClasses(nextClasses);
-    setCheckIns((currentCheckIns) => [...currentCheckIns, ...newCheckIns]);
-    setBulkImportError('');
-    setIsBulkImportOpen(false);
+    try {
+      await importSchedule(changedClasses, newCheckIns);
+      setBulkImportError('');
+      setIsBulkImportOpen(false);
+    } catch {
+      // The shared data status displays persistence errors; keep the draft open.
+    }
   };
 
-  const handleDeleteCheckIn = (checkInId: string) => {
-    setCheckIns((currentCheckIns) => {
-      return currentCheckIns.filter((checkIn) => checkIn.id !== checkInId);
-    });
+  const handleDeleteCheckIn = async (checkInId: string) => {
+    if (saving) return;
+    try {
+      await deleteCheckIn(checkInId);
+    } catch {
+      // The shared data status displays persistence errors.
+    }
   };
 
   const handleRequestDeleteCheckIn = (checkInId: string) => {
@@ -777,6 +805,7 @@ export function CalendarPage() {
   };
 
   const handleOpenEditClassModal = (targetClass: TeachingClass) => {
+    setFormError('');
     setEditingClassId(targetClass.id);
     setEditingClassName(targetClass.name);
     setEditingClassSalary(String(targetClass.salary));
@@ -788,71 +817,63 @@ export function CalendarPage() {
     setIsEditClassModalOpen(true);
   };
 
-  const handleSaveEditClass = () => {
-    if (!editingClassId || !editingClassName || !editingClassSalary || !editingClassDurationHours) {
-      return;
+  const handleSaveEditClass = async () => {
+    if (saving) return;
+    const error = validateClass(editingClassName, editingClassSalary, editingClassDurationHours, editingClassHasRecurringSchedule, editingClassRecurringWeekday, editingClassRecurringStartTime);
+    setFormError(error);
+    if (error) return;
+    const classItem = classes.find((item) => item.id === editingClassId);
+    if (!classItem) return;
+    try {
+      await updateClass({
+        ...classItem, name: editingClassName.trim(), salary: Number(editingClassSalary),
+        durationHours: Number(editingClassDurationHours), note: editingClassNote.trim(),
+        recurringSchedule: editingClassHasRecurringSchedule ? {
+          weekday: Number(editingClassRecurringWeekday), startTime: editingClassRecurringStartTime,
+          enabled: true, skippedDates: classItem.recurringSchedule?.skippedDates ?? [],
+        } : classItem.recurringSchedule ? { ...classItem.recurringSchedule, enabled: false } : undefined,
+      });
+      setIsEditClassModalOpen(false);
+    } catch {
+      // The shared data status displays persistence errors; keep the form open.
     }
-
-    setClasses((currentClasses) =>
-      currentClasses.map((classItem) =>
-        classItem.id === editingClassId
-          ? {
-              ...classItem,
-              name: editingClassName.trim(),
-              salary: Number(editingClassSalary),
-              durationHours: Number(editingClassDurationHours),
-              note: editingClassNote.trim(),
-              recurringSchedule: editingClassHasRecurringSchedule
-                ? {
-                    weekday: Number(editingClassRecurringWeekday),
-                    startTime: editingClassRecurringStartTime,
-                    enabled: true,
-                    skippedDates: classItem.recurringSchedule?.skippedDates ?? [],
-                  }
-                : undefined,
-            }
-          : classItem,
-      ),
-    );
-
-    setIsEditClassModalOpen(false);
   };
 
-  const handleDeleteClass = (targetClassId: string) => {
-    const targetClass = classes.find((c) => c.id === targetClassId);
-    const hasCheckIns = checkIns.some((checkIn) => checkIn.classId === targetClassId);
-
-    if (
-      !window.confirm(
-        hasCheckIns
-          ? `Lớp "${targetClass?.name}" đang có dữ liệu check-in. Bạn có chắc muốn xóa không?`
-          : `Bạn có chắc muốn xóa lớp "${targetClass?.name}" không?`,
-      )
-    ) {
+  const handleDeleteClass = async (targetClassId: string) => {
+    if (saving) return;
+    setFormError('');
+    const targetClass = classes.find((item) => item.id === targetClassId);
+    if (checkIns.some((checkIn) => checkIn.classId === targetClassId)) {
+      setFormError('Không thể xóa lớp đã có buổi dạy để bảo toàn lịch sử thu nhập.');
       return;
     }
-
-    setClasses((currentClasses) => currentClasses.filter((c) => c.id !== targetClassId));
-    setCheckIns((currentCheckIns) => currentCheckIns.filter((checkIn) => checkIn.classId !== targetClassId));
+    if (!window.confirm(`Bạn có chắc muốn xóa lớp "${targetClass?.name}" không?`)) return;
+    try {
+      await deleteClass(targetClassId);
+    } catch {
+      // The shared data status displays persistence errors.
+    }
   };
 
-  const handleSaveSalaryPayment = () => {
-    if (!salaryPaymentAmount || Number(salaryPaymentAmount) <= 0) {
+  const handleSaveSalaryPayment = async () => {
+    if (saving) return;
+    setFormError('');
+    const paymentDate = parseISO(salaryPaymentDate);
+    if (!salaryPaymentAmount.trim() || !Number.isFinite(Number(salaryPaymentAmount)) || Number(salaryPaymentAmount) <= 0 || Number.isNaN(paymentDate.getTime()) || format(paymentDate, 'yyyy-MM-dd') !== salaryPaymentDate) {
+      setFormError('Vui lòng nhập ngày hợp lệ và số tiền lớn hơn 0.');
       return;
     }
-
-    addSalaryPayment({
-      date: new Date(salaryPaymentDate).toISOString(),
-      amount: Number(salaryPaymentAmount),
-      note: salaryPaymentNote.trim(),
-    });
-
-    closeSalaryPaymentModal();
+    try {
+      await addSalaryPayment({ date: salaryPaymentDate, amount: Number(salaryPaymentAmount), note: salaryPaymentNote.trim() });
+      closeSalaryPaymentModal();
+    } catch {
+      // The shared data status displays persistence errors; keep the form open.
+    }
   };
 
   const exportSummaryData = useMemo(() => {
     const monthKey = format(currentDate, 'yyyy-MM');
-    const currentMonthCheckIns = checkIns.filter(
+    const currentMonthCheckIns = visibleCheckIns.filter(
       (c) => format(parseISO(c.date), 'yyyy-MM') === monthKey,
     );
 
@@ -864,7 +885,7 @@ export function CalendarPage() {
         totalAmount: number;
         name: string;
         salary: number;
-        sessions: Array<{ dateLabel: string; timeRange: string; dateValue: string }>;
+        sessions: Array<{ dateLabel: string; timeRange: string; dateValue: string; amount: number }>;
       }
     >();
 
@@ -901,6 +922,7 @@ export function CalendarPage() {
             dateLabel: format(parseISO(checkIn.date), 'd/M'),
             timeRange,
             dateValue: checkIn.date,
+            amount,
           },
         ],
       });
@@ -908,10 +930,8 @@ export function CalendarPage() {
 
     return {
       monthLabel: format(currentDate, 'MMMM yyyy', { locale: vi }),
-      totalSalary: monthTotalSalary,
-      paidSalary: monthPaidSalary,
-      remainingSalary: monthTotalSalary - monthPaidSalary,
-      checkInCount: monthCheckInCount,
+      totalSalary: getMonthTotalSalary(visibleCheckIns, classes, currentDate),
+      checkInCount: currentMonthCheckIns.length,
       totalHours: currentMonthCheckIns.reduce((total, checkIn) => {
         const classItem = classMap.get(checkIn.classId);
         return total + (checkIn.sessionHours ?? classItem?.durationHours ?? 0);
@@ -925,16 +945,16 @@ export function CalendarPage() {
         }))
         .sort((firstClass, secondClass) => firstClass.name.localeCompare(secondClass.name, 'vi')),
     };
-  }, [checkIns, classMap, currentDate, monthPaidSalary, monthTotalSalary, monthCheckInCount]);
+  }, [visibleCheckIns, classes, classMap, currentDate]);
 
   const exportAsText = () => {
-    const lines = [`=== BÁO CÁO THU NHẬP - ${exportSummaryData.monthLabel.toUpperCase()} ===`, ''];
+    const lines = [`=== DANH SÁCH LỊCH DẠY - ${exportSummaryData.monthLabel.toUpperCase()} ===`, ''];
 
     exportSummaryData.classes.forEach((classSummary, classIndex) => {
       lines.push(`${classSummary.name}:`);
 
       classSummary.sessions.forEach((session) => {
-        lines.push(`${session.dateLabel}: ${session.timeRange}`);
+        lines.push(`${session.dateLabel}: ${session.timeRange || "Không ghi giờ"}`);
       });
 
       lines.push(`Tổng giờ: ${formatHoursLabel(classSummary.totalHours)}`);
@@ -955,7 +975,22 @@ export function CalendarPage() {
     lines.push(`Tổng giờ: ${formatHoursLabel(exportSummaryData.totalHours)}`);
     lines.push(`Tổng tiền: ${formatCurrency(exportSummaryData.totalSalary)}`);
 
+    lines.push('', 'LỊCH DỰ KIẾN (chưa tính vào thu nhập):');
+    const planned = Object.entries(plannedSessionsByDate)
+      .filter(([date]) => date.startsWith(format(currentDate, 'yyyy-MM')))
+      .sort(([first], [second]) => first.localeCompare(second))
+      .flatMap(([date, sessions]) => sessions.map((session) => `${format(parseISO(date), 'd/M')}: ${session.className} · ${session.timeRange} · Dự kiến`));
+    lines.push(...(planned.length ? planned : ['Không có buổi dự kiến.']));
     return lines.join('\n');
+  };
+
+  const downloadExport = () => {
+    const url = URL.createObjectURL(new Blob(['\uFEFF', exportAsText()], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lich-day-${format(currentDate, 'yyyy-MM')}.txt`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const copyExportText = async () => {
@@ -964,12 +999,20 @@ export function CalendarPage() {
       setExportCopied(true);
       setTimeout(() => setExportCopied(false), 2000);
     } catch {
-      // Fallback
+      setFormError('Không thể sao chép tự động. Bạn có thể chọn và sao chép nội dung báo cáo.');
     }
   };
 
   return (
     <div className="min-h-screen bg-natural-bg pb-28">
+      {formError && (
+        <div role="alert" className="fixed top-4 left-1/2 z-[120] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <span>{formError}</span>
+            <button type="button" onClick={() => setFormError('')} aria-label="Đóng thông báo lỗi"><X size={18} /></button>
+          </div>
+        </div>
+      )}
       <Header
         currentDate={currentDate}
         onPrevMonth={prevMonth}
@@ -991,7 +1034,7 @@ export function CalendarPage() {
             </div>
             <div>
               <p className="text-[9px] uppercase font-bold tracking-wider text-white/65 leading-none mb-1">
-                Tổng thu nhập {format(currentDate, 'MM/yyyy')}
+                Tổng thu nhập tất cả lớp {format(currentDate, 'MM/yyyy')}
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-lg sm:text-xl font-bold font-serif leading-none">
@@ -1007,6 +1050,12 @@ export function CalendarPage() {
             <ChevronRight className="w-3 h-3" />
           </div>
         </div>
+
+        <div className="flex items-center gap-2 py-1">
+          <ClassFilter classes={sortedClasses} value={calendarClassId} onChange={setCalendarClassId} />
+          <button type="button" onClick={() => setIsExportOpen(true)} className="shrink-0 rounded-xl bg-natural-heading px-3 py-2 text-xs font-semibold text-white">Xuất danh sách</button>
+        </div>
+        {calendarClassId && <p className="text-xs text-natural-muted">Lớp đang lọc: {visibleCheckIns.filter((item) => format(parseISO(item.date), 'yyyy-MM') === format(currentDate, 'yyyy-MM')).length} buổi đã dạy · {formatCurrency(getMonthTotalSalary(visibleCheckIns, classes, currentDate))}</p>}
 
         {/* Calendar Main Board (iPhone Primary Focused View) */}
         <Calendar
@@ -1256,18 +1305,16 @@ export function CalendarPage() {
               <div className="space-y-3">
                 <label className="type-caption font-bold uppercase">Lớp học</label>
                 {classes.length > 0 && (
-                  <select
+                  <ClassFilter
+                    mode="select"
+                    classes={sortedClasses.map((item) => ({
+                      id: item.id,
+                      name: item.name,
+                      description: `${formatCurrency(item.salary)}/giờ · ${formatHoursLabel(item.durationHours)}`,
+                    }))}
                     value={selectedClassId}
-                    onChange={(e) => setSelectedClassId(e.target.value)}
-                    className="hallmark-input text-sm"
-                  >
-                    <option value="">-- Chọn lớp học --</option>
-                    {sortedClasses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({formatCurrency(c.salary)}/h - {c.durationHours}h)
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedClassId}
+                  />
                 )}
 
                 <button
@@ -1334,7 +1381,7 @@ export function CalendarPage() {
                       </div>
                     )}
                     <button
-                      onClick={handleSaveClass}
+                      disabled={saving} onClick={handleSaveClass}
                       className="hallmark-button-primary w-full text-xs"
                     >
                       Lưu lớp học
@@ -1369,7 +1416,7 @@ export function CalendarPage() {
                 </button>
                 <button
                   onClick={handleConfirmCheckIn}
-                  disabled={!selectedClassId || !selectedTimePreview}
+                  disabled={saving || !selectedClassId || !selectedTimePreview}
                   className="hallmark-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Xác nhận chấm công
@@ -1544,7 +1591,7 @@ export function CalendarPage() {
                 <button onClick={closeBulkImportModal} className="hallmark-button-secondary">
                   Hủy
                 </button>
-                <button onClick={handleBulkImport} className="hallmark-button-primary">
+                <button disabled={saving} onClick={handleBulkImport} className="hallmark-button-primary">
                   Xác nhận nhập
                 </button>
               </div>
@@ -1731,7 +1778,7 @@ export function CalendarPage() {
                 >
                   Hủy
                 </button>
-                <button onClick={handleSaveEditClass} className="hallmark-button-primary">
+                <button disabled={saving} onClick={handleSaveEditClass} className="hallmark-button-primary">
                   Cập nhật
                 </button>
               </div>
@@ -1798,7 +1845,7 @@ export function CalendarPage() {
                 <button onClick={closeSalaryPaymentModal} className="hallmark-button-secondary">
                   Hủy
                 </button>
-                <button onClick={handleSaveSalaryPayment} className="hallmark-button-primary">
+                <button disabled={saving} onClick={handleSaveSalaryPayment} className="hallmark-button-primary">
                   Lưu thanh toán
                 </button>
               </div>
@@ -1819,8 +1866,8 @@ export function CalendarPage() {
             >
               <div className="flex items-center justify-between border-b border-natural-border-light pb-3">
                 <div>
-                  <h3 className="type-title">Báo cáo thu nhập {exportSummaryData.monthLabel}</h3>
-                  <p className="type-caption">Sao chép văn bản tóm tắt thu nhập</p>
+                  <h3 className="type-title">Danh sách lịch dạy {exportSummaryData.monthLabel}</h3>
+                  <p className="type-caption">Các buổi của tháng và lớp đang lọc</p>
                 </div>
                 <button onClick={closeExportModal} className="p-2 rounded-full hover:bg-natural-surface text-natural-muted">
                   <X className="w-5 h-5" />
@@ -1834,7 +1881,8 @@ export function CalendarPage() {
                 className="hallmark-input font-mono text-xs bg-natural-panel"
               />
 
-              <div className="flex justify-between items-center pt-2">
+              <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
+                <button onClick={downloadExport} className="hallmark-button-secondary">Tải .txt</button>
                 <button
                   onClick={copyExportText}
                   className="hallmark-button-secondary flex items-center gap-2"

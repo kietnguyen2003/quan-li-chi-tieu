@@ -51,13 +51,7 @@ export const resolveSessionAmount = (
   const computedAmount = (classItem?.salary ?? 0) * sessionHours;
 
   if (typeof checkIn.sessionAmount === 'number' && Number.isFinite(checkIn.sessionAmount)) {
-    if (checkIn.sessionAmount > 0) {
-      return checkIn.sessionAmount;
-    }
-
-    if ((classItem?.salary ?? 0) === 0) {
-      return checkIn.sessionAmount;
-    }
+    return checkIn.sessionAmount;
   }
 
   return computedAmount;
