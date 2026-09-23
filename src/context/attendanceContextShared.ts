@@ -18,6 +18,7 @@ export interface AttendanceContextType {
   isCloud: boolean;
   reload: () => Promise<void>;
   clearDataError: () => void;
+  clearLocalData: () => void;
   addCheckIn: (checkIn: Omit<ClassCheckIn, 'id'>) => Promise<void>;
   deleteCheckIn: (id: string) => Promise<void>;
   addClass: (newClass: Omit<TeachingClass, 'id'>) => Promise<TeachingClass>;

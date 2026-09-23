@@ -166,12 +166,30 @@ export function AttendanceProvider({ children, storageScope }: { children: React
     checkIns: [...previous.checkIns, ...checkIns],
   }, result: undefined }));
 
+  const clearLocalData = () => {
+    if (mutationPending.current) throw new Error('Vui lòng đợi thao tác lưu hoàn tất.');
+    try {
+      localStorage.removeItem('class_checkin_classes');
+      localStorage.removeItem('class_checkin_records');
+      localStorage.removeItem('class_checkin_salary_payments');
+    } finally {
+      // Reset only the guest view, including after a partial storage failure.
+      if (!storageScope) {
+        const remaining = loadGuestData();
+        currentData.current = remaining;
+        setData(remaining);
+        pendingClass.current = null;
+        pendingPayment.current = null;
+      }
+    }
+  };
+
   return <AttendanceContext.Provider value={{
     currentDate, setCurrentDate,
     nextMonth: () => setCurrentDate((date) => addMonths(date, 1)),
     prevMonth: () => setCurrentDate((date) => subMonths(date, 1)),
     ...data, loading, hasLoaded, saving, loadError, dataError, isCloud: Boolean(storageScope), reload,
-    clearDataError: () => setDataError(null),
+    clearDataError: () => setDataError(null), clearLocalData,
     addClass, updateClass, deleteClass, addCheckIn, deleteCheckIn, addSalaryPayment, deleteSalaryPayment, importSchedule,
   }}>{children}</AttendanceContext.Provider>;
 }

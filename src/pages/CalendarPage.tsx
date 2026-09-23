@@ -314,11 +314,13 @@ export function CalendarPage() {
     deleteClass,
     importSchedule,
     saving,
+    clearLocalData,
     salaryPayments,
     addSalaryPayment,
   } = useAttendance();
 
   const [formError, setFormError] = useState('');
+  const [localDataCleared, setLocalDataCleared] = useState(false);
 
   // Modals & Popups State
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -1188,6 +1190,22 @@ export function CalendarPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-2.5">
+                <button type="button" disabled={saving} onClick={() => {
+                  if (!window.confirm('Xóa toàn bộ lớp học, lịch chấm công và khoản nhận lương lưu trên thiết bị này? Dữ liệu chưa đồng bộ sẽ mất và không thể hoàn tác. Tài khoản và dữ liệu Supabase vẫn được giữ nguyên.')) return;
+                  try {
+                    clearLocalData();
+                    setCalendarClassId('');
+                    setSelectedClassId('');
+                    setLocalDataCleared(true);
+                  } catch {
+                    setFormError('Chưa thể xóa hết dữ liệu local. Hãy kiểm tra quyền lưu trữ của trình duyệt và thử lại.');
+                  }
+                }} className="rounded-2xl border border-red-200 bg-red-50 p-3.5 text-left disabled:opacity-50">
+                  <span className="block text-sm font-semibold text-red-800">Xóa dữ liệu trên thiết bị</span>
+                  <span className="mt-1 block text-xs text-natural-muted">Chỉ dữ liệu local · Giữ nguyên dữ liệu Supabase</span>
+                </button>
+                {localDataCleared && <p role="status" className="text-xs text-natural-success">Đã xóa dữ liệu local trên thiết bị này.</p>}
+
                 <button
                   onClick={() => {
                     setIsQuickMenuOpen(false);

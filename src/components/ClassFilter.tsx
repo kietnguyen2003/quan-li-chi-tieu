@@ -24,12 +24,19 @@ export function ClassFilter({ classes, value, onChange, mode = 'filter' }: Class
 
   useEffect(() => {
     if (!open) return;
-    input.current?.focus();
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) input.current?.focus();
     const dismiss = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
+    const dismissOnFocus = (event: FocusEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
     document.addEventListener('pointerdown', dismiss);
-    return () => document.removeEventListener('pointerdown', dismiss);
+    document.addEventListener('focusin', dismissOnFocus);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('focusin', dismissOnFocus);
+    };
   }, [open]);
 
   const choose = (id: string) => {
@@ -39,9 +46,7 @@ export function ClassFilter({ classes, value, onChange, mode = 'filter' }: Class
   };
 
   return (
-    <div ref={root} className="relative min-w-0 flex-1" onBlur={(event) => {
-      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-    }} onKeyDown={(event) => {
+    <div ref={root} className="relative min-w-0 flex-1" onKeyDown={(event) => {
       if (event.key === 'Escape' && open) {
         event.preventDefault();
         setOpen(false);

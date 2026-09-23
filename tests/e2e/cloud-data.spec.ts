@@ -151,3 +151,25 @@ test('bulk import saves class and session snapshots and does not duplicate on re
   expect(cloud.tables.teaching_sessions).toHaveLength(1);
   expect(cloud.tables.teaching_sessions[0]).toMatchObject({ user_id: owner, session_amount: 180000, session_hours: 1.5, session_date: '2026-09-22' });
 });
+
+test('clearing local data keeps cloud records and the signed-in session', async ({ page }) => {
+  const cloud = await mockCloud(page);
+  await login(page);
+  await page.evaluate(() => {
+    localStorage.setItem('class_checkin_classes', '[{"id":"guest"}]');
+    localStorage.setItem('class_checkin_records', '[]');
+    localStorage.setItem('class_checkin_salary_payments', '[]');
+  });
+  const before = JSON.stringify(cloud.tables);
+  await page.getByRole('button', { name: 'Menu tiện ích' }).click();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: /Xóa dữ liệu trên thiết bị/ }).click();
+  await expect(page.getByText('Hiện có 1 lớp')).toBeVisible();
+  expect(JSON.stringify(cloud.tables)).toBe(before);
+  expect(cloud.requests.some((request) => request.method !== 'GET')).toBe(false);
+  expect(await page.evaluate(() => localStorage.getItem('class_checkin_classes'))).toBeNull();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Menu tiện ích' }).click();
+  await expect(page.getByText('Hiện có 1 lớp')).toBeVisible();
+});
