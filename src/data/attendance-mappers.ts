@@ -1,4 +1,5 @@
 import { format, isValid, parseISO } from 'date-fns'
+import { calculateSessionAmount } from '../transaction-helpers.ts'
 import type { ClassCheckIn, SalaryPayment, TeachingClass } from '../types.ts'
 
 export interface AttendanceData {
@@ -48,7 +49,7 @@ export function sessionToRow(userId: string, item: ClassCheckIn, classItem: Teac
   if (item.classId !== classItem.id) invalid('Lớp học không khớp với buổi dạy.')
   if (Boolean(item.startTime) !== Boolean(item.endTime)) invalid('Cần nhập cả giờ bắt đầu và kết thúc.')
   const hours = numeric(item.sessionHours ?? classItem.durationHours, 0, 24, 'Số giờ', true)
-  const amount = numeric(item.sessionAmount ?? classItem.salary * hours, 0, 999999999999.99, 'Tiền buổi dạy')
+  const amount = numeric(item.sessionAmount ?? calculateSessionAmount(classItem, hours), 0, 999999999999.99, 'Tiền buổi dạy')
   return { id: item.id, user_id: userId, class_id: item.classId, session_date: calendarDate(item.date), start_time: item.startTime ? timeValue(item.startTime) : null, end_time: item.endTime ? timeValue(item.endTime) : null, session_hours: hours, session_amount: amount }
 }
 export function paymentToRow(userId: string, item: SalaryPayment) {

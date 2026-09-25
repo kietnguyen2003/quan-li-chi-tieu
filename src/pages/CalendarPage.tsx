@@ -31,6 +31,8 @@ import { MonthlyIncomeBreakdown } from '../components/MonthlyIncomeBreakdown';
 import { MonthlySummary } from '../components/MonthlySummary';
 import { useAttendance } from '../context/useAttendance';
 import {
+  calculateSessionAmount,
+  getBillableHours,
   getMonthTotalSalary,
   groupCheckInsByDate,
   resolveSessionAmount,
@@ -335,7 +337,7 @@ export function CalendarPage() {
   const [className, setClassName] = useState('');
   const [classSalary, setClassSalary] = useState('');
   const [classNote, setClassNote] = useState('');
-  const [classDurationHours, setClassDurationHours] = useState('');
+  const [checkInDurationHours, setCheckInDurationHours] = useState(1);
   const [classHasRecurringSchedule, setClassHasRecurringSchedule] = useState(false);
   const [classRecurringWeekday, setClassRecurringWeekday] = useState('1');
   const [classRecurringStartTime, setClassRecurringStartTime] = useState('09:00');
@@ -452,13 +454,14 @@ export function CalendarPage() {
 
   const selectedClass = classes.find((classItem) => classItem.id === selectedClassId) ?? null;
   const selectedTimePreview = selectedClass
-    ? buildTimeRangeFromStart(checkInStartTime, selectedClass.durationHours)
+    ? buildTimeRangeFromStart(checkInStartTime, checkInDurationHours)
     : null;
 
   const openCheckInModal = (day: Date) => {
     setFormError('');
     setIsDayListOpen(false);
     setSelectedDay(day);
+    setCheckInDurationHours(1);
     setSelectedClassId('');
     setCheckInStartTime(`${padTimeUnit(new Date().getHours())}:${padTimeUnit(new Date().getMinutes())}`);
     setIsAddingClass(classes.length === 0);
@@ -470,7 +473,6 @@ export function CalendarPage() {
     setClassName('');
     setClassSalary('');
     setClassNote('');
-    setClassDurationHours('');
     setClassHasRecurringSchedule(false);
     setClassRecurringWeekday('1');
     setClassRecurringStartTime('09:00');
@@ -522,7 +524,7 @@ export function CalendarPage() {
 
   const handleSaveClass = async () => {
     if (saving) return;
-    const error = validateClass(className, classSalary, classDurationHours, classHasRecurringSchedule, classRecurringWeekday, classRecurringStartTime);
+    const error = validateClass(className, classSalary, '1', classHasRecurringSchedule, classRecurringWeekday, classRecurringStartTime);
     setFormError(error);
     if (error) return;
     try {
@@ -530,13 +532,14 @@ export function CalendarPage() {
         name: className.trim(),
         salary: Number(classSalary),
         note: classNote.trim(),
-        durationHours: Number(classDurationHours),
+        durationHours: 1,
         recurringSchedule: classHasRecurringSchedule ? {
           weekday: Number(classRecurringWeekday), startTime: classRecurringStartTime,
           enabled: true, skippedDates: [],
         } : undefined,
       });
       setSelectedClassId(newClass.id);
+      setCheckInDurationHours(1);
       resetClassForm();
     } catch {
       // The shared data status displays persistence errors; keep the form open.
@@ -559,8 +562,8 @@ export function CalendarPage() {
       await addCheckIn({
         classId: selectedClassId, date,
         startTime: selectedTimePreview.startTime, endTime: selectedTimePreview.endTime,
-        sessionHours: selectedClass.durationHours,
-        sessionAmount: selectedClass.salary * selectedClass.durationHours,
+        sessionHours: checkInDurationHours,
+        sessionAmount: calculateSessionAmount(selectedClass, checkInDurationHours),
         timeRange: selectedTimePreview.timeRange,
       });
       closeCheckInModal();
@@ -660,7 +663,7 @@ export function CalendarPage() {
       startTime: timePreview.startTime,
       endTime: timePreview.endTime,
       sessionHours: classItem.durationHours,
-      sessionAmount: classItem.salary * classItem.durationHours,
+      sessionAmount: calculateSessionAmount(classItem, classItem.durationHours),
       timeRange: timePreview.timeRange,
     };
 
@@ -777,7 +780,7 @@ export function CalendarPage() {
         startTime: session.startTime,
         endTime: session.endTime,
         sessionHours: session.sessionHours,
-        sessionAmount: (session.classSalary ?? updatedClasses.find((item) => item.id === classId)?.salary ?? 0) * session.sessionHours,
+        sessionAmount: calculateSessionAmount({ name: updatedClasses.find((item) => item.id === classId)?.name ?? session.className, salary: session.classSalary ?? updatedClasses.find((item) => item.id === classId)?.salary ?? 0 }, session.sessionHours),
         timeRange: session.timeRange,
       });
     }
@@ -1304,12 +1307,12 @@ export function CalendarPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="hallmark-panel w-full max-w-lg p-6 bg-white space-y-5"
+              className="hallmark-panel w-full max-w-lg max-h-[90dvh] overflow-y-auto p-6 bg-white space-y-5"
             >
               <div className="flex items-center justify-between border-b border-natural-border-light pb-3">
                 <div>
                   <h3 className="type-title">Chấm công ngày {format(selectedDay, 'dd/MM/yyyy')}</h3>
-                  <p className="type-caption">Chọn lớp học và thời gian bắt đầu</p>
+                  <p className="type-caption">Chọn lớp học, giờ bắt đầu và thời lượng tập</p>
                 </div>
                 <button
                   onClick={closeCheckInModal}
@@ -1328,10 +1331,14 @@ export function CalendarPage() {
                     classes={sortedClasses.map((item) => ({
                       id: item.id,
                       name: item.name,
-                      description: `${formatCurrency(item.salary)}/giờ · ${formatHoursLabel(item.durationHours)}`,
+                      description: `${formatCurrency(item.salary)}/giờ`,
                     }))}
                     value={selectedClassId}
-                    onChange={setSelectedClassId}
+                    onChange={(id) => {
+                      setSelectedClassId(id);
+                      const hours = classes.find((item) => item.id === id)?.durationHours ?? 1;
+                      setCheckInDurationHours([1, 1.5, 2, 2.5].includes(hours) ? hours : 1);
+                    }}
                   />
                 )}
 
@@ -1352,23 +1359,13 @@ export function CalendarPage() {
                       onChange={(e) => setClassName(e.target.value)}
                       className="hallmark-input text-sm"
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        placeholder="Lương/giờ (VD: 150000)"
-                        value={classSalary}
-                        onChange={(e) => setClassSalary(e.target.value)}
-                        className="hallmark-input text-sm"
-                      />
-                      <input
-                        type="number"
-                        step="0.5"
-                        placeholder="Số giờ (VD: 1.5)"
-                        value={classDurationHours}
-                        onChange={(e) => setClassDurationHours(e.target.value)}
-                        className="hallmark-input text-sm"
-                      />
-                    </div>
+                    <input
+                      type="number"
+                      placeholder="Lương/giờ (VD: 150000)"
+                      value={classSalary}
+                      onChange={(e) => setClassSalary(e.target.value)}
+                      className="hallmark-input text-sm"
+                    />
                     <label className="flex items-center gap-2 text-xs font-semibold text-natural-heading">
                       <input
                         type="checkbox"
@@ -1419,10 +1416,36 @@ export function CalendarPage() {
                     className="hallmark-input text-sm"
                   />
 
+                  <fieldset>
+                    <legend className="type-caption font-bold uppercase mb-2">Thời lượng tập</legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[1, 1.5, 2, 2.5].map((hours) => (
+                        <label key={hours} className="relative cursor-pointer">
+                          <input
+                            type="radio"
+                            name="check-in-duration"
+                            value={hours}
+                            checked={checkInDurationHours === hours}
+                            onChange={() => setCheckInDurationHours(hours)}
+                            className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          />
+                          <span className="flex items-center justify-center rounded-xl border border-natural-border px-3 py-3 text-sm font-semibold text-natural-heading transition-colors peer-checked:border-natural-heading peer-checked:bg-natural-heading peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-natural-heading">
+                            Tập trong {hours}h
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <p className="type-caption">
+                    Tính tiền {getBillableHours(selectedClass.name, checkInDurationHours)}h
+                    {' · '}{selectedClass.name.trim().toLowerCase() === 'hamza' ? 'Hamza làm tròn xuống' : 'Giờ lẻ làm tròn lên'}
+                  </p>
+
                   {selectedTimePreview && (
                     <div className="p-3 bg-natural-panel-strong rounded-xl text-xs font-semibold text-natural-heading flex items-center justify-between">
                       <span>Thời gian: {selectedTimePreview.timeRange}</span>
-                      <span>Dự kiến: {formatCurrency(selectedClass.salary * selectedClass.durationHours)}</span>
+                      <span>Dự kiến: {formatCurrency(calculateSessionAmount(selectedClass, checkInDurationHours))}</span>
                     </div>
                   )}
                 </div>

@@ -34,6 +34,8 @@ Writes finish before dialogs close. Failed loads offer a retry and never upload 
 
 Guest mode still uses the original browser localStorage keys. Previous account-local snapshots and guest data remain intact but are **not automatically uploaded** or merged. An empty cloud account starts with an empty calendar. Session amounts are snapshots, including zero; editing class rates does not recalculate past earnings. Classes with teaching history cannot be deleted from the UI.
 
+New sessions retain actual training hours and end times, but bill fractional hours rounded up to the next whole hour. The class named `Hamza` (case-insensitive, ignoring surrounding spaces) rounds down instead: 1.5h bills as 1h; 2.5h bills as 2h. This applies to manual check-ins, recurring confirmations, and bulk imports. Existing saved session amounts are unchanged.
+
 ## Verification
 
 ```bash

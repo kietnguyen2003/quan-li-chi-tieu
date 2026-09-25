@@ -1,6 +1,15 @@
 import { format, isSameMonth, parseISO } from 'date-fns';
 import type { ClassCheckIn, TeachingClass } from './types.ts';
 
+// Billing hours are separate from actual training duration and saved history.
+export const getBillableHours = (className: string, actualHours: number): number =>
+  className.trim().toLowerCase() === 'hamza' ? Math.floor(actualHours) : Math.ceil(actualHours);
+
+export const calculateSessionAmount = (
+  classItem: Pick<TeachingClass, 'name' | 'salary'>,
+  actualHours: number,
+): number => classItem.salary * getBillableHours(classItem.name, actualHours);
+
 export const groupCheckInsByDate = (
   checkIns: ClassCheckIn[],
 ): Record<string, ClassCheckIn[]> => {

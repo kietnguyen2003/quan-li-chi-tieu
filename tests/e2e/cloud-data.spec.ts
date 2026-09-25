@@ -67,10 +67,12 @@ test('signed-in calendar loads cloud classes and check-ins survive a reload', as
   await page.getByRole('button', { name: 'Lớp chấm công: Chọn lớp học' }).click();
   await page.getByRole('textbox', { name: 'Tìm lớp học' }).fill('lop tren');
   await page.getByRole('group', { name: 'Lớp chấm công' }).getByRole('button', { name: /Lớp trên Supabase/ }).click();
+  await expect(page.getByRole('radio', { name: 'Tập trong 1.5h', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: 'Tập trong 2.5h', exact: true }).check();
   await page.getByRole('button', { name: 'Xác nhận chấm công' }).click();
   await expect(page.getByRole('heading', { name: /Chấm công ngày/ })).not.toBeVisible();
   expect(cloud.tables.teaching_sessions).toHaveLength(1);
-  expect(cloud.tables.teaching_sessions[0]).toMatchObject({ user_id: owner, class_id: classId, session_hours: 1.5, session_amount: 225000 });
+  expect(cloud.tables.teaching_sessions[0]).toMatchObject({ user_id: owner, class_id: classId, session_hours: 2.5, session_amount: 450000 });
   await page.reload();
   await expect(page.getByText('(1 buổi)', { exact: true })).toBeVisible();
   expect(cloud.requests.filter((request) => request.method === 'GET').every((request) => request.ownerFilter === `eq.${owner}`)).toBe(true);
@@ -118,7 +120,7 @@ test('creating a weekly class saves its schedule and a salary payment survives r
   await page.getByRole('button', { name: 'Tạo lớp học mới' }).click();
   await page.getByPlaceholder('Tên lớp (VD: Keming, Lyra)').fill('Lớp mới có lịch tuần');
   await page.getByPlaceholder('Lương/giờ (VD: 150000)').fill('200000');
-  await page.getByPlaceholder('Số giờ (VD: 1.5)').fill('2');
+  await expect(page.getByPlaceholder('Số giờ (VD: 1.5)')).toHaveCount(0);
   await page.getByLabel('Đây là lớp cố định theo tuần').check();
   await page.getByRole('button', { name: 'Lưu lớp học', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Lớp chấm công: Lớp mới có lịch tuần' })).toBeVisible();
@@ -149,7 +151,7 @@ test('bulk import saves class and session snapshots and does not duplicate on re
     await expect(page.getByRole('heading', { name: 'Nhập dữ liệu hàng loạt' })).not.toBeVisible();
   }
   expect(cloud.tables.teaching_sessions).toHaveLength(1);
-  expect(cloud.tables.teaching_sessions[0]).toMatchObject({ user_id: owner, session_amount: 180000, session_hours: 1.5, session_date: '2026-09-22' });
+  expect(cloud.tables.teaching_sessions[0]).toMatchObject({ user_id: owner, session_amount: 240000, session_hours: 1.5, session_date: '2026-09-22' });
 });
 
 test('clearing local data keeps cloud records and the signed-in session', async ({ page }) => {

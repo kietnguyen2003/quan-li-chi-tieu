@@ -28,7 +28,7 @@ describe('attendance database mapping', () => {
   })
   it('snapshots default hours and salary, preserving explicit zero amounts', () => {
     const item = { id, classId, date: '2026-09-22T12:00:00' }
-    assert.equal(sessionToRow(userId, item, classItem).session_amount, 225000)
+    assert.equal(sessionToRow(userId, item, classItem).session_amount, 300000)
     assert.equal(sessionToRow(userId, { ...item, sessionAmount: 0 }, classItem).session_amount, 0)
     assert.equal(sessionToRow(userId, { ...item, sessionHours: 2 }, classItem).session_amount, 300000)
     assert.equal(sessionToRow(userId, { ...item, startTime: '23:00', endTime: '01:00' }, classItem).end_time, '01:00')
@@ -85,3 +85,18 @@ describe('optional schedules and error recovery', () => {
     assert.equal(getDataErrorMessage({}), getDataErrorMessage(null))
   })
 })
+
+for (const [name, hours, billedHours] of [
+  ['Sally', 1, 1], ['Sally', 1.5, 2], ['Sally', 2, 2], ['Sally', 2.5, 3],
+  ['Hamza', 1, 1], ['Hamza', 1.5, 1], ['Hamza', 2, 2], ['Hamza', 2.5, 2],
+  ['  hAMZa  ', 1.5, 1], ['Hamza group', 1.5, 2],
+] as const) {
+  it(`bills ${name} ${hours}h as ${billedHours}h while preserving actual hours and saved money`, () => {
+    const target = { ...classItem, name }
+    const session = { id, classId, date: '2026-09-22', sessionHours: hours }
+    const row = sessionToRow(userId, session, target)
+    assert.equal(row.session_hours, hours)
+    assert.equal(row.session_amount, billedHours * target.salary)
+    assert.equal(sessionToRow(userId, { ...session, sessionAmount: 123000 }, target).session_amount, 123000)
+  })
+}
